@@ -13,7 +13,7 @@ include("DeterminantStrings.jl")
 include("FCI.jl")
 include("TDMs.jl")
 
-export FCIProblem
+#export FCIProblem
 
 N = 30
 binom_coeff = Array{Int,2}(undef,N+1,N+1)

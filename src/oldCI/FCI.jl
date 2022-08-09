@@ -2,7 +2,10 @@ using LinearAlgebra
 using Printf
 using Profile
 using LinearMaps
+using InCoreIntegrals
 
+import Arpack: eigs
+import LinearMaps: LinearMap
 
 struct FCIProblem <: Problem
     no::Int  # number of orbitals
@@ -1235,16 +1238,16 @@ end
 
 
 """
-    function do_fci(problem::FCIProblem, ints, nr; v0=Nothing, tol=1e-12)
+    function eigs(problem::FCIProblem, ints, nr; v0=Nothing, tol=1e-12)
 
 Use Arpack.eigs to diagonalize the problem
 - `problem`: FCIProblem to solve
-- `ints`: InCoreIntegrals
+- `ints`: InCoreInts
 - `nr`: number of roots 
 - `v0`: Initial vector
 - `tol`: convergence tolerance
 """
-function do_fci(problem::FCIProblem, ints, nr; v0=Nothing, tol=1e-12)
+function eigs(problem::FCIProblem, ints, nr; v0=Nothing, tol=1e-12)
     #={{{=#
     Hmap = get_map(ints, problem)
     if v0 == Nothing
@@ -1484,6 +1487,47 @@ function compute_rdm1_rdm2(P::FCIProblem, vec_l::Vector{T}, vec_r::Vector{T}) wh
     vr = reshape(vr, ket_a.max * ket_b.max)
 
     return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab
+end
+#=}}}=#
+
+#####################################
+"""
+    LinearMap(ham, prb::FCIProblem)
+
+Get LinearMap with takes a vector and returns action of H on that vector
+
+# Arguments
+- ints: `InCoreInts` object
+- prb:  `FCIProblem` object
+"""
+function LinearMap(ints::InCoreInts, prb::FCIProblem)
+    #={{{=#
+    ket_a = DeterminantString(prb.no, prb.na)
+    ket_b = DeterminantString(prb.no, prb.nb)
+
+    #@btime lookup_a = $fill_ca_lookup2($ket_a)
+    lookup_a = fill_ca_lookup2(ket_a)
+    lookup_b = fill_ca_lookup2(ket_b)
+    iters = 0
+    function mymatvec(v)
+        iters += 1
+        #@printf(" Iter: %4i\n", iters)
+        nr = 0
+        if length(size(v)) == 1
+            nr = 1
+            v = reshape(v,ket_a.max*ket_b.max, nr)
+        else 
+            nr = size(v)[2]
+        end
+        v = reshape(v, ket_a.max, ket_b.max, nr)
+        sig = compute_ab_terms2(v, ints, prb, lookup_a, lookup_b)
+        sig += compute_ss_terms2(v, ints, prb, lookup_a, lookup_b)
+
+        v = reshape(v, ket_a.max*ket_b.max, nr)
+        sig = reshape(sig, ket_a.max*ket_b.max, nr)
+        return sig 
+    end
+    return LinearMap(mymatvec, prb.dim, prb.dim; issymmetric=true, ismutating=false, ishermitian=true)
 end
 #=}}}=#
 

@@ -2,5 +2,5 @@ using ActiveSpaceSolvers
 using Test
 
 @testset "ActiveSpaceSolvers.jl" begin
-    # Write your tests here.
+    include("test_FCI.jl")
 end
