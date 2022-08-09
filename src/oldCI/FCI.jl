@@ -1,16 +1,10 @@
 using LinearAlgebra 
 using Printf
-#using Parameters
 using Profile
 using LinearMaps
-#using BenchmarkTools
-#using OrderedCollections
-#using PyCall
 
 
-
-
-struct FCIProblem
+struct FCIProblem <: Problem
     no::Int  # number of orbitals
     na::Int  # number of alpha
     nb::Int  # number of beta

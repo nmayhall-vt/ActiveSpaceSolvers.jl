@@ -6,11 +6,14 @@ using Arpack
 using TimerOutputs
 using TensorOperations
 
+import ..ActiveSpaceSolvers: Problem
 
 include("Helpers.jl")
 include("DeterminantStrings.jl")
 include("FCI.jl")
 include("TDMs.jl")
+
+export FCIProblem
 
 N = 30
 binom_coeff = Array{Int,2}(undef,N+1,N+1)
