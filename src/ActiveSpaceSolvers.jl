@@ -1,5 +1,5 @@
 module ActiveSpaceSolvers
 
-# Write your package code here.
+include("oldCI/StringCI.jl");
 
 end
