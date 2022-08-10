@@ -32,10 +32,7 @@ abstract type Solver end
 
 # includes
 include("type_Solutions.jl");
-include("type_LinOp.jl");
 include("type_SolverSettings.jl");
-include("type_ArpackSolver.jl");
-include("type_KrylovKitSolver.jl");
 include("StringCI/StringCI.jl");
 
 # import stuff so we can extend and export
@@ -50,9 +47,6 @@ export Solution
 export FCIProblem
 export build_H_matrix 
 export LinearMap 
-export LinOp 
-export ArpackSolver 
-export KrylovKitSolver
 export SolverSettings
 export solve 
 
