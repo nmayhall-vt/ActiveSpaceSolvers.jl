@@ -3,12 +3,12 @@ using Printf
 """
 This type contains both the Ansatz and the results.
 
-    - ansatz::A<:Ansatz
+    - ansatz::A
     - energies::Vector{T}
     - vectors::Matrix{T}
 
 """
-struct Solution{A,T} 
+struct Solution{A<:Ansatz, T<:AbstractFloat} 
     ansatz::A
     energies::Vector{T}
     vectors::Matrix{T}

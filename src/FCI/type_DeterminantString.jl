@@ -3,20 +3,6 @@ using Parameters
 using StaticArrays
 using BenchmarkTools
 #using InteractiveUtils
-import Base: display
-
-
-### 
-function string_to_index(str::String)
-    return parse(Int, reverse(str); base=2)
-end
-
-function index_to_string(index::Int)
-    return [parse(Int, ss) for ss in reverse(bitstring(index))]
-end
-
-
-
 
 
 """
@@ -37,7 +23,7 @@ function DeterminantString(no::Int, ne::Int)
     return DeterminantString(no, ne, 1, 1, Vector(1:ne), get_nchk(no,ne))
 end
 
-function display(d::DeterminantString)
+function Base.display(d::DeterminantString)
     print(d)
 end
 

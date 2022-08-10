@@ -29,9 +29,11 @@ using NPZ
     ref_e = -3.155304800477 # from pyscf in generate_integrals.py
     @test isapprox(e[1], ref_e , atol=1e-10)
         
-    e, v = eigs(ansatz, ints, 3)
    
     ref = [-3.1553048004765447, -2.849049024311162, -2.5973991507252805]
+    
+    Hmap = LinearMap(ints, ansatz)
+    e, v = eigs(Hmap, nev=3, which=:SR)
     @test all(isapprox.(e.+ints.h0, ref, atol=1e-10))
     println(e.+ints.h0)
 
@@ -58,5 +60,5 @@ using NPZ
 
     # string stuff
     #display(ActiveSpaceSolvers.StringCI.string_to_index("110010"))
-    @test ActiveSpaceSolvers.string_to_index("110010") == 19
+    @test ActiveSpaceSolvers.FCI.string_to_index("110010") == 19
 end

@@ -1180,32 +1180,6 @@ end
 
 
 """
-    function eigs(ansatz::FCIAnsatz, ints, nr; v0=Nothing, tol=1e-12)
-
-Use Arpack.eigs to diagonalize the ansatz
-- `ansatz`: FCIAnsatz to solve
-- `ints`: InCoreInts
-- `nr`: number of roots 
-- `v0`: Initial vector
-- `tol`: convergence tolerance
-"""
-function eigs(ansatz::FCIAnsatz, ints, nr; v0=Nothing, tol=1e-12)
-    #={{{=#
-    Hmap = get_map(ints, ansatz)
-    if v0 == Nothing
-        e, v = Arpack.eigs(Hmap, nev = nr, which=:SR, tol=tol)
-        e = real(e)[1:nr]
-        return e, v[:,1:nr]
-    else
-        e, v = Arpack.eigs(Hmap, nev = nr, which=:SR, v0=v0, tol=tol)
-        e = real(e)[1:nr]
-        return e, v[:,1:nr]
-    end
-end
-#=}}}=#
-
-
-"""
 """
 function compute_1rdm(ansatz::FCIAnsatz, vl::Vector{T}, vr::Vector{T}) where T
     #={{{=#

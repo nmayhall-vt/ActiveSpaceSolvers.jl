@@ -29,3 +29,16 @@ Looks up binomial coefficient from a precomputed table: n choose k
 end
 
 
+### 
+function string_to_index(str::String)
+    return parse(Int, reverse(str); base=2)
+end
+
+function index_to_string(index::Int)
+    return [parse(Int, ss) for ss in reverse(bitstring(index))]
+end
+
+
+
+
+

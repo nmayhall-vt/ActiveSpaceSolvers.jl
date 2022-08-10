@@ -7,36 +7,36 @@
 
 ## Description of workflow
 
-### Problem
-A `Problem` abstract type contains all the metadata that defines a CI basis.
-For example, if we create a `FCIProblem` subtype, then this contains the metadata
+### Ansatz 
+A `Ansatz` abstract type contains all the metadata that defines a wavefunction approximation.
+For example, if we create a `FCIAnsatz` subtype, then this contains the metadata
 needed to diagonalize the Hamiltonian in the FCI basis.  
 Diagonalization of H in a RASCI determinant basis would then require a different 
 subtype, one that specified orbital spaces and such.
-Since a `Problem` essentially defines a Slater determinant basis, 
-the combination of a `Problem`, and an `InCoreInts` object can fully define 
+Since a `Ansatz` essentially defines a Slater determinant basis, 
+the combination of a `Ansatz`, and an `InCoreInts` object can fully define 
 the action of the operator (defined by the integrals) on a trial state
-(defined by the problem). This is simply a `LinearMap`, provided by the LinearMaps packages.
+(defined by the Ansatz). This is simply a `LinearMap`, provided by the LinearMaps packages.
 
 ### SolverSettings
 A `LinearMap` simply implements the action of our Hamiltonian on a trial state 
-defined by the `Problem`. By pairing this `LinearMap` with a `Solver` concrete
+defined by the `Ansatz`. By pairing this `LinearMap` with a `Solver` concrete
 subtype, we can then generate our solution, which is a `Solution{P,T}` type. 
 
 ### Solution
-A `Solution{P,T}` is then essentially a set of eigenstates for problem, `P`, of
+A `Solution{P,T}` is then essentially a set of eigenstates for Ansatz, `P`, of
 datatype `T`. This can then be used for constructed RDMs and operator matrices, 
 as we wish to do in FermiCG.
 
 ----
 
-`Problem` + `InCoreInts` + `SolverSettings` --> `Solution` --> RDMs and Operators
+solve(`Ansatz` + `InCoreInts` + `SolverSettings`) --> `Solution` --> RDMs and Operators
 
 ----
 
-1. `Problem`
-	- `FCIProblem`
-	- `RASCIProblem`
+1. `Ansatz`
+	- `FCIAnsatz`
+	- `RASCIAnsatz`
 	- ...
 	
 
@@ -47,13 +47,13 @@ as we wish to do in FermiCG.
 ints = InCoreInts(h0, h1, h2)	
 
 # to use FCI, we simply need to define the number of orbitals and electrons
-problem = FCIProblem(norb, n_elec_a, n_elec_b)
+ansatz = FCIAnsatz(norb, n_elec_a, n_elec_b)
 
 # We define some solver settings - default uses Arpack.jl
 solver = SolverSettings(nroots=3, tol=1e-6, maxiter=100)
 
-# we can now solve our problem and get energies and vectors from solution
-solution = solve(problem, ints, solver)
+# we can now solve our Ansatz and get energies and vectors from solution
+solution = solve(ansatz, ints, solver)
  
 display(solution)
 

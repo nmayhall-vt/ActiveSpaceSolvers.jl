@@ -3,26 +3,41 @@ using LinearMaps
 using InCoreIntegrals 
 using Printf
 
-# includes
-include("type_Ansatz.jl");
-include("type_FCIAnsatz.jl");
+
+# Interface Requirements
+#   These types/methods should be subtyped/extended by each submodule 
+#   that implements a new ansatz
+abstract type Ansatz end        
+function build_H_matrix end     
+#function LinearMap end
+
+
+# Includes from Interface Layer
 include("type_Solutions.jl");
 include("type_SolverSettings.jl");
 
-# import stuff so we can extend and export
-#import .StringCI: FCIAnsatz, LinOp, build_H_matrix
-#import .StringCI: FCIAnsatz, build_H_matrix
-import LinearMaps: LinearMap
 
-
-# Exports
+# Exports from Interface Layer
 export Ansatz
-export FCIAnsatz
-
 export Solution 
+export build_H_matrix 
+export SolverSettings
+export solve 
+
+
+# include sub-modules and import Ansatz sub-types
+include("FCI/FCI.jl");
+import .FCI: FCIAnsatz
+
+# Exports from Sub-modules 
+export FCIAnsatz
 export build_H_matrix 
 export LinearMap 
 export SolverSettings
 export solve 
+
+#import .StringCI: FCIAnsatz, build_H_matrix
+#import LinearMaps: LinearMap
+
 
 end
