@@ -7,7 +7,7 @@ using InCoreIntegrals
 import Arpack: eigs
 import LinearMaps: LinearMap
 
-struct FCIProblem <: Problem
+struct FCIProblem <: Problem 
     no::Int  # number of orbitals
     na::Int  # number of alpha
     nb::Int  # number of beta
