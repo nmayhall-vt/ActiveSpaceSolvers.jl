@@ -3,39 +3,14 @@ using Printf
 using Profile
 using LinearMaps
 using InCoreIntegrals
+using ActiveSpaceSolvers
+using TensorOperations
 
 import Arpack: eigs
-import LinearMaps: LinearMap
-import ActiveSpaceSolvers: LinOp
+#import ActiveSpaceSolvers: LinOp, FCIAnsatz
 
-struct FCIProblem <: Problem 
-    no::Int  # number of orbitals
-    na::Int  # number of alpha
-    nb::Int  # number of beta
-    dima::Int 
-    dimb::Int 
-    dim::Int
-    converged::Bool
-    restarted::Bool
-    iteration::Int
-    algorithm::String   #  options: direct/davidson
-    n_roots::Int
-end
 
-function FCIProblem(no, na, nb)
-    na <= no || throw(DimensionMismatch)
-    nb <= no || throw(DimensionMismatch)
-    dima = calc_nchk(no,na)
-    dimb = calc_nchk(no,nb)
-    return FCIProblem(no, na, nb, dima, dimb, dima*dimb, false, false, 1, "direct", 1)
-end
-
-function display(p::FCIProblem)
-    @printf(" FCIProblem:: #Orbs = %-3i #α = %-2i #β = %-2i Dimension: %-9i\n",p.no,p.na,p.nb,p.dim)
-    #@printf(" FCIProblem::  NOrbs: %2i NAlpha: %2i NBeta: %2i Dimension: %-9i\n",p.no,p.na,p.nb,p.dim)
-end
-
-function compute_spin_diag_terms_full!(H, P::FCIProblem, Hmat)
+function compute_spin_diag_terms_full!(H, P::FCIAnsatz, Hmat)
     #={{{=#
 
     print(" Compute same spin terms.\n")
@@ -50,45 +25,11 @@ end
 #=}}}=#
 
 
-"""
-    build_H_matrix(ints, P::FCIProblem)
-
-Build the Hamiltonian defined by `ints` in the Slater Determinant Basis 
-in the sector of Fock space specified by `P`
-"""
-function build_H_matrix(ints, P::FCIProblem)
-
-    T = eltype(ints.h0)
-
-    Hmat = zeros(P.dim, P.dim)
-
-    Hdiag_a = precompute_spin_diag_terms(ints,P,P.na)
-    Hdiag_b = precompute_spin_diag_terms(ints,P,P.nb)
-    # 
-    #   Create ci_strings
-    ket_a = DeterminantString(P.no, P.na)
-    ket_b = DeterminantString(P.no, P.nb)
-    bra_a = DeterminantString(P.no, P.na)
-    bra_b = DeterminantString(P.no, P.nb)
-    #   
-    #   Add spin diagonal components
-    Hmat += kron(Matrix(1.0I, P.dimb, P.dimb), Hdiag_a)
-    Hmat += kron(Hdiag_b, Matrix(1.0I, P.dima, P.dima))
-    #
-    #   Add opposite spin term (todo: make this reasonably efficient)
-    Hmat += compute_ab_terms_full(ints, P, T=T)
-    
-    Hmat = .5*(Hmat+Hmat')
-
-    return Hmat
-end
-
-
 
 """
-    compute_fock_diagonal!(H, P::FCIProblem, e_mf::Float64)
+    compute_fock_diagonal!(H, P::FCIAnsatz, e_mf::Float64)
 """
-function compute_fock_diagonal(P::FCIProblem, orb_energies::Vector, e_mf::Real)
+function compute_fock_diagonal(P::FCIAnsatz, orb_energies::Vector, e_mf::Real)
     ket_a = DeterminantString(P.no, P.na)
     ket_b = DeterminantString(P.no, P.nb)
     
@@ -115,9 +56,9 @@ end
 
 
 """
-    compute_ab_terms_full!(H, P::FCIProblem, Hmat)
+    compute_ab_terms_full!(H, P::FCIAnsatz, Hmat)
 """
-function compute_ab_terms_full!(H, P::FCIProblem, Hmat)
+function compute_ab_terms_full!(H, P::FCIAnsatz, Hmat)
     #={{{=#
 
     print(" Compute opposite spin terms.\n")
@@ -181,9 +122,9 @@ end
 
 
 """
-    compute_ab_terms_full(H, P::FCIProblem)
+    compute_ab_terms_full(H, P::FCIAnsatz)
 """
-function compute_ab_terms_full(H, P::FCIProblem; T::Type=Float64)
+function compute_ab_terms_full(H, P::FCIAnsatz; T::Type=Float64)
     #={{{=#
 
     #print(" Compute opposite spin terms. Shape of v: ", size(v), "\n")
@@ -331,10 +272,10 @@ end
 #=}}}=#
 
 """
-    compute_ab_terms2(v, H, P::FCIProblem, 
+    compute_ab_terms2(v, H, P::FCIAnsatz, 
                           ket_a_lookup, ket_b_lookup)
 """
-function compute_ab_terms2(v, H, P::FCIProblem, 
+function compute_ab_terms2(v, H, P::FCIAnsatz, 
                           ket_a_lookup, ket_b_lookup)
     #={{{=#
 
@@ -487,10 +428,10 @@ end
 
 
 """
-    compute_aa_terms2(v, H, P::FCIProblem, 
+    compute_aa_terms2(v, H, P::FCIAnsatz, 
                           ket_a_lookup)
 """
-function compute_ss_terms2(v, H, P::FCIProblem, ket_a_lookup, ket_b_lookup)
+function compute_ss_terms2(v, H, P::FCIAnsatz, ket_a_lookup, ket_b_lookup)
     #={{{=#
 
     #print(" Compute opposite spin terms. Shape of v: ", size(v), "\n")
@@ -611,9 +552,9 @@ end
 
 
 """
-    compute_ab_terms(v, H, P::FCIProblem)
+    compute_ab_terms(v, H, P::FCIAnsatz)
 """
-function compute_ab_terms(v, H, P::FCIProblem)
+function compute_ab_terms(v, H, P::FCIAnsatz)
     #={{{=#
 
     #print(" Compute opposite spin terms. Shape of v: ", size(v), "\n")
@@ -693,9 +634,9 @@ end
 #=}}}=#
 
 """
-    compute_ab_terms(v, H, P::FCIProblem, ket_a_lookup, ket_b_lookup)
+    compute_ab_terms(v, H, P::FCIAnsatz, ket_a_lookup, ket_b_lookup)
 """
-function compute_ab_terms(v, H, P::FCIProblem, ket_a_lookup, ket_b_lookup)
+function compute_ab_terms(v, H, P::FCIAnsatz, ket_a_lookup, ket_b_lookup)
     #={{{=#
 
     #print(" Compute opposite spin terms. Shape of v: ", size(v), "\n")
@@ -766,9 +707,9 @@ end
 #=}}}=#
 
 """
-    precompute_spin_diag_terms(H, P::FCIProblem, e)
+    precompute_spin_diag_terms(H, P::FCIAnsatz, e)
 """
-function precompute_spin_diag_terms(H, P::FCIProblem, e)
+function precompute_spin_diag_terms(H, P::FCIAnsatz, e)
     #={{{=#
 
     #   Create local references to ci_strings
@@ -850,11 +791,11 @@ end
 
 
 """
-    get_map(ham, prb::FCIProblem, HdiagA, HdiagB)
+    get_map(ham, prb::FCIAnsatz, HdiagA, HdiagB)
 
 Assumes you've already computed the spin diagonal components
 """
-function get_map(ham, prb::FCIProblem, HdiagA, HdiagB)
+function get_map(ham, prb::FCIAnsatz, HdiagA, HdiagB)
     #=
     Get LinearMap with takes a vector and returns action of H on that vector
     =#
@@ -892,11 +833,11 @@ end
 
 
 """
-    get_map(ham, prb::FCIProblem)
+    get_map(ham, prb::FCIAnsatz)
 
 Get LinearMap with takes a vector and returns action of H on that vector
 """
-function get_map(ham, prb::FCIProblem)
+function get_map(ham, prb::FCIAnsatz)
     #={{{=#
     ket_a = DeterminantString(prb.no, prb.na)
     ket_b = DeterminantString(prb.no, prb.nb)
@@ -929,31 +870,31 @@ end
 
 
 """
-    run_fci(ints, prb::FCIProblem)
+    run_fci(ints, prb::FCIAnsatz)
 
 input: ints is a struct containing 0, 2, and 4 dimensional tensors
 - `h0`: energy shift
 - `h1`: 1 electron integrals
 - `h2`: 2 electron integrals (chemists notation)
-- `prb`: FCIProblem just defines the current CI problem (i.e., fock sector)
+- `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
 
 ints is simply an InCoreInts object from FermiCG
 
 """
-function run_fci(ints, problem::FCIProblem; v0=nothing, nroots=1, tol=1e-6,
+function run_fci(ints, ansatz::FCIAnsatz; v0=nothing, nroots=1, tol=1e-6,
                 precompute_ss = false)
 
     T = eltype(ints.h0)
 
     if precompute_ss
         print(" Compute spin_diagonal terms\n")
-        @time Hdiag_a = StringCI.precompute_spin_diag_terms(ints,problem,problem.na)
-        @time Hdiag_b = StringCI.precompute_spin_diag_terms(ints,problem,problem.nb)
+        @time Hdiag_a = StringCI.precompute_spin_diag_terms(ints,ansatz,ansatz.na)
+        @time Hdiag_b = StringCI.precompute_spin_diag_terms(ints,ansatz,ansatz.nb)
         print(" done\n")
 
-        Hmap = StringCI.get_map(ints, problem, Hdiag_a, Hdiag_b)
+        Hmap = StringCI.get_map(ints, ansatz, Hdiag_a, Hdiag_b)
     else
-        Hmap = StringCI.get_map(ints, problem)
+        Hmap = StringCI.get_map(ints, ansatz)
     end
     
     e = 0
@@ -976,10 +917,10 @@ end
 
 
 """
-    build_s2(prb::FCIProblem)
-- `prb`: FCIProblem just defines the current CI problem (i.e., fock sector)
+    build_s2(prb::FCIAnsatz)
+- `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
 """
-function build_S2_matrix(P::FCIProblem)
+function build_S2_matrix(P::FCIAnsatz)
 
     #={{{=#
     S2 = zeros(P.dim, P.dim)
@@ -1100,17 +1041,17 @@ end
 
 
 """
-    svd_state(prb::FCIProblem)
+    svd_state(prb::FCIAnsatz)
 Do an SVD of the FCI vector partitioned into clusters with (norbs1 | norbs2)
 where the orbitals are assumed to be ordered for cluster 1| cluster 2 haveing norbs1 and 
 norbs2, respectively.
 
-- `prb`: FCIProblem just defines the current CI problem (i.e., fock sector)
+- `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
 - `norbs1`:number of orbitals in left cluster
 - `norbs2`:number of orbitals in right cluster
 - `svd_thresh`: the threshold below which the states will be discarded
 """
-function svd_state(v,P::FCIProblem,norbs1,norbs2,svd_thresh)
+function svd_state(v,P::FCIAnsatz,norbs1,norbs2,svd_thresh)
 
     #={{{=#
 
@@ -1239,18 +1180,18 @@ end
 
 
 """
-    function eigs(problem::FCIProblem, ints, nr; v0=Nothing, tol=1e-12)
+    function eigs(ansatz::FCIAnsatz, ints, nr; v0=Nothing, tol=1e-12)
 
-Use Arpack.eigs to diagonalize the problem
-- `problem`: FCIProblem to solve
+Use Arpack.eigs to diagonalize the ansatz
+- `ansatz`: FCIAnsatz to solve
 - `ints`: InCoreInts
 - `nr`: number of roots 
 - `v0`: Initial vector
 - `tol`: convergence tolerance
 """
-function eigs(problem::FCIProblem, ints, nr; v0=Nothing, tol=1e-12)
+function eigs(ansatz::FCIAnsatz, ints, nr; v0=Nothing, tol=1e-12)
     #={{{=#
-    Hmap = get_map(ints, problem)
+    Hmap = get_map(ints, ansatz)
     if v0 == Nothing
         e, v = Arpack.eigs(Hmap, nev = nr, which=:SR, tol=tol)
         e = real(e)[1:nr]
@@ -1266,27 +1207,27 @@ end
 
 """
 """
-function compute_1rdm(problem::FCIProblem, vl::Vector{T}, vr::Vector{T}) where T
+function compute_1rdm(ansatz::FCIAnsatz, vl::Vector{T}, vr::Vector{T}) where T
     #={{{=#
 
 
-    rdma = compute_Aa(problem.no,                    
-                     problem.na, problem.nb,
-                     problem.na, problem.nb,
+    rdma = compute_Aa(ansatz.no,                    
+                     ansatz.na, ansatz.nb,
+                     ansatz.na, ansatz.nb,
                      reshape(vl, length(vl), 1), 
                      reshape(vr, length(vr), 1), 
                     "alpha") 
    
-    rdmb = compute_Aa(problem.no,                    
-                     problem.na, problem.nb,
-                     problem.na, problem.nb,
+    rdmb = compute_Aa(ansatz.no,                    
+                     ansatz.na, ansatz.nb,
+                     ansatz.na, ansatz.nb,
                      reshape(vl, length(vl), 1), 
                      reshape(vr, length(vr), 1), 
                     "beta") 
    
      
-    rdma = reshape(rdma, problem.no, problem.no)
-    rdmb = reshape(rdmb, problem.no, problem.no)
+    rdma = reshape(rdma, ansatz.no, ansatz.no)
+    rdmb = reshape(rdmb, ansatz.no, ansatz.no)
     return rdma, rdmb
 end
 #=}}}=#
@@ -1295,7 +1236,7 @@ end
 
 """
 """
-function compute_rdm1_rdm2(P::FCIProblem, vec_l::Vector{T}, vec_r::Vector{T}) where T
+function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) where T
     #={{{=#
 
     no = P.no
@@ -1491,88 +1432,47 @@ function compute_rdm1_rdm2(P::FCIProblem, vec_l::Vector{T}, vec_r::Vector{T}) wh
 end
 #=}}}=#
 
-#####################################
-"""
-    LinearMap(ints, prb::FCIProblem)
 
-Get LinearMap with takes a vector and returns action of H on that vector
-
-# Arguments
-- ints: `InCoreInts` object
-- prb:  `FCIProblem` object
-"""
-function LinearMap(ints::InCoreInts, prb::FCIProblem)
-    #={{{=#
-    ket_a = DeterminantString(prb.no, prb.na)
-    ket_b = DeterminantString(prb.no, prb.nb)
-
-    #@btime lookup_a = $fill_ca_lookup2($ket_a)
-    lookup_a = fill_ca_lookup2(ket_a)
-    lookup_b = fill_ca_lookup2(ket_b)
-    iters = 0
-    function mymatvec(v)
-        iters += 1
-        #@printf(" Iter: %4i\n", iters)
-        nr = 0
-        if length(size(v)) == 1
-            nr = 1
-            v = reshape(v,ket_a.max*ket_b.max, nr)
-        else 
-            nr = size(v)[2]
-        end
-        v = reshape(v, ket_a.max, ket_b.max, nr)
-        sig = compute_ab_terms2(v, ints, prb, lookup_a, lookup_b)
-        sig += compute_ss_terms2(v, ints, prb, lookup_a, lookup_b)
-
-        v = reshape(v, ket_a.max*ket_b.max, nr)
-        sig = reshape(sig, ket_a.max*ket_b.max, nr)
-        return sig 
-    end
-    return LinearMap(mymatvec, prb.dim, prb.dim; issymmetric=true, ismutating=false, ishermitian=true)
-end
-#=}}}=#
-
-
-#####################################
-"""
-    LinOp(ints, prb::FCIProblem)
-
-Get LinearMap with takes a vector and returns action of H on that vector
-
-# Arguments
-- ints: `InCoreInts` object
-- prb:  `FCIProblem` object
-"""
-function LinOp(ints::InCoreInts{T}, prb::FCIProblem) where T
-    #={{{=#
-    ket_a = DeterminantString(prb.no, prb.na)
-    ket_b = DeterminantString(prb.no, prb.nb)
-
-    #@btime lookup_a = $fill_ca_lookup2($ket_a)
-    lookup_a = fill_ca_lookup2(ket_a)
-    lookup_b = fill_ca_lookup2(ket_b)
-    iters = 0
-    function mymatvec(v)
-        iters += 1
-        #@printf(" Iter: %4i\n", iters)
-        nr = 0
-        if length(size(v)) == 1
-            nr = 1
-            v = reshape(v,ket_a.max*ket_b.max, nr)
-        else 
-            nr = size(v)[2]
-        end
-        v = reshape(v, ket_a.max, ket_b.max, nr)
-        sig = compute_ab_terms2(v, ints, prb, lookup_a, lookup_b)
-        sig += compute_ss_terms2(v, ints, prb, lookup_a, lookup_b)
-
-        v = reshape(v, ket_a.max*ket_b.max, nr)
-        sig = reshape(sig, ket_a.max*ket_b.max, nr)
-        return sig 
-    end
-
-    return LinOp{T}(mymatvec, prb.dim, true, true)
-end
-#=}}}=#
+######################################
+#"""
+#    LinOp(ints, prb::FCIAnsatz)
+#
+#Get LinearMap with takes a vector and returns action of H on that vector
+#
+## Arguments
+#- ints: `InCoreInts` object
+#- prb:  `FCIAnsatz` object
+#"""
+#function LinOp(ints::InCoreInts{T}, prb::FCIAnsatz) where T
+#    #={{{=#
+#    ket_a = DeterminantString(prb.no, prb.na)
+#    ket_b = DeterminantString(prb.no, prb.nb)
+#
+#    #@btime lookup_a = $fill_ca_lookup2($ket_a)
+#    lookup_a = fill_ca_lookup2(ket_a)
+#    lookup_b = fill_ca_lookup2(ket_b)
+#    iters = 0
+#    function mymatvec(v)
+#        iters += 1
+#        #@printf(" Iter: %4i\n", iters)
+#        nr = 0
+#        if length(size(v)) == 1
+#            nr = 1
+#            v = reshape(v,ket_a.max*ket_b.max, nr)
+#        else 
+#            nr = size(v)[2]
+#        end
+#        v = reshape(v, ket_a.max, ket_b.max, nr)
+#        sig = compute_ab_terms2(v, ints, prb, lookup_a, lookup_b)
+#        sig += compute_ss_terms2(v, ints, prb, lookup_a, lookup_b)
+#
+#        v = reshape(v, ket_a.max*ket_b.max, nr)
+#        sig = reshape(sig, ket_a.max*ket_b.max, nr)
+#        return sig 
+#    end
+#
+#    return LinOp{T}(mymatvec, prb.dim, true, true)
+#end
+##=}}}=#
 
 

@@ -35,7 +35,6 @@ end
 
 function DeterminantString(no::Int, ne::Int)
     return DeterminantString(no, ne, 1, 1, Vector(1:ne), get_nchk(no,ne))
-    #return DeterminantString(no, ne, 1, 1, Vector(1:ne), zeros(get_nchk(no,ne),no,no), get_nchk(no,ne))
 end
 
 function display(d::DeterminantString)
@@ -182,7 +181,7 @@ function calc_linear_index!(c::DeterminantString)
     for i::Int in 1:c.ne
         v = c.config[i]
         for j::Int in v_prev+1:v-1
-            c.lin_index += StringCI.binom_coeff[c.no-j+1,c.ne-i+1]
+            c.lin_index += binom_coeff[c.no-j+1,c.ne-i+1]
             #@btime $c.lin_index += $binom_coeff[$c.no-$j+1,$c.ne-$i+1]
             #c.lin_index += get_nchk(c.no-j,c.ne-i)
         end

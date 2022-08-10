@@ -1,14 +1,15 @@
 using Printf
 
 """
-This type contains both the Problem and the resulting Basis vectors.
+This type contains both the Ansatz and the results.
 
-    - problem::P
+    - ansatz::A<:Ansatz
+    - energies::Vector{T}
     - vectors::Matrix{T}
 
 """
-struct Solution{P,T} 
-    problem::P
+struct Solution{A,T} 
+    ansatz::A
     energies::Vector{T}
     vectors::Matrix{T}
 end
@@ -19,7 +20,7 @@ Base.size(S::Solution) = size(S.vectors)
 function Base.display(S::Solution)
     println()
     println(" Energies of Solution")
-    display(S.problem)
+    display(S.ansatz)
     @printf(" %5s %12s\n", "State", "Energy")
     @printf("-------------------\n")
     for i in 1:length(S.energies)

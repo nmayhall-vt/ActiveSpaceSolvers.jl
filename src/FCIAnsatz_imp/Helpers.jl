@@ -12,6 +12,13 @@ function calc_nchk(n::Integer,k::Integer)
 end
 
 
+binom_coeff = Array{Int,2}(undef,31,31)
+for i in 0:size(binom_coeff,2)-1
+    for j in i:size(binom_coeff,1)-1
+        binom_coeff[j+1,i+1] = calc_nchk(j,i)
+    end
+end
+
 """
     get_nchk(n::Integer,k::Integer)
 
@@ -20,3 +27,5 @@ Looks up binomial coefficient from a precomputed table: n choose k
 @inline function get_nchk(n,k)
     return binom_coeff[n+1,k+1]
 end
+
+

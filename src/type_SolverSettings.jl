@@ -21,28 +21,28 @@ function SolverSettings(;nroots=1, tol=1e-8, maxiter=100, verbose=0, package="ar
     return SolverSettings(nroots, tol, maxiter, verbose, package)
 end
 
-function solve(problem::P, ints::InCoreInts{T}, S::SolverSettings; v0=nothing) where {T, P<:Problem}
+function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) where {T, A<:Ansatz}
 
     #e = Vector{T}([])
     #v = Matrix{T}([])
 
     if lowercase(S.package) == "arpack"
 
-        Hmap = LinearMap(ints, problem)
+        Hmap = LinearMap(ints, ansatz)
 
         if v0 == nothing
             e,v = Arpack.eigs(Hmap, nev = S.nroots, which=:SR, tol=S.tol)
         else
             e,v = Arpack.eigs(Hmap, v0=v0[:,1], nev = S.nroots, which=:SR, tol=S.tol)
         end
-        return Solution{P,T}(problem, e, v)
+        return Solution{A,T}(ansatz, e, v)
 
 
     elseif lowercase(S.package) == "krylovkit"
         
         error("NYI")
 
-#        Hmap = LinOp(ints, problem)
+#        Hmap = LinOp(ints, ansatz)
 #
 #        if v0 == nothing
 #            e, v, info = KrylovKit.eigsolve(Hmap, S.nroots, :SR, 
@@ -70,7 +70,7 @@ function solve(problem::P, ints::InCoreInts{T}, S::SolverSettings; v0=nothing) w
 #            @printf(" Number of matvecs performed: %5i\n", info.numops)
 #            @printf(" Number of subspace restarts: %5i\n", info.numiter)
 #        end
-#        return Solution{P,T}(problem, e, v)
+#        return Solution{P,T}(ansatz, e, v)
     end
 end
 
