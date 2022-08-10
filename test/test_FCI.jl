@@ -41,8 +41,13 @@ using NPZ
     display(e)
     @test all(isapprox.(diag(e.+ints.h0), ref, atol=1e-10))
 
+    solver = ArpackSolver(nroots=3)
+    println(solver)
+    solution = solve(problem, ints, solver)
+    display(solution)
+    @test all(isapprox.(solution.energies.+ints.h0, ref, atol=1e-10))
 
     # string stuff
-    display(ActiveSpaceSolvers.StringCI.string_to_index("110010"))
+    #display(ActiveSpaceSolvers.StringCI.string_to_index("110010"))
     @test ActiveSpaceSolvers.StringCI.string_to_index("110010") == 19
 end
