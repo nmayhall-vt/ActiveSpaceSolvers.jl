@@ -53,7 +53,7 @@ ansatz = FCIAnsatz(norb, n_elec_a, n_elec_b)
 solver = SolverSettings(nroots=3, tol=1e-6, maxiter=100)
 
 # we can now solve our Ansatz and get energies and vectors from solution
-solution = solve(ansatz, ints, solver)
+solution = solve(ints, ansatz, solver)
  
 display(solution)
 
