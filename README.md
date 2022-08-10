@@ -46,3 +46,24 @@ as we wish to do in FermiCG.
 	- `ArpackSolver`
 	- `Davidson`
 	- ...
+
+## Example
+```julia
+
+# get h0, h1, h2 from pyscf or elsewhere and create ints
+ints = InCoreInts(h0, h1, h2)	
+
+# to use FCI, we simply need to define the number of orbitals and electrons
+problem = FCIProblem(norb, n_elec_a, n_elec_b)
+
+# to use the solver provided by Arpack.jl, we define an ArpackSolver type
+solver = ArpackSolver(nroots=3, tol=1e-6, maxiter=100)
+
+# we can now solve our problem and get energies and vectors from solution
+solution = solve(problem, ints, solver)
+ 
+display(solution)
+
+e = solution.energies
+v = solution.vectors
+```
