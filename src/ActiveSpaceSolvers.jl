@@ -32,6 +32,7 @@ abstract type Solver end
 
 # includes
 include("type_Solutions.jl");
+include("type_ArpackSolver.jl");
 include("StringCI/StringCI.jl");
 
 # import stuff so we can extend and export
@@ -41,8 +42,13 @@ import LinearMaps: LinearMap
 
 
 # Exports
+export Problem
+export Solver 
+export Solution 
 export FCIProblem
 export build_H_matrix 
 export LinearMap 
+export ArpackSolver 
+export solve 
 
 end
