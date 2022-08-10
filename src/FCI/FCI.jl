@@ -8,8 +8,9 @@ using Printf
 include("type_FCIAnsatz.jl");
 include("Helpers.jl");
 include("type_DeterminantString.jl");
+include("TDMs.jl");
 include("inner.jl");
-include("outer.jl");
+include("interface.jl");
 
 # import stuff so we can extend and export
 import LinearMaps: LinearMap

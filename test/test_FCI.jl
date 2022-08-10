@@ -48,7 +48,25 @@ using NPZ
     solution = solve(ints, ansatz, solver)
     display(solution)
     @test all(isapprox.(solution.energies.+ints.h0, ref, atol=1e-10))
-    
+
+
+
+    op_ca_aa = compute_operator_ca_aa(solution, solution)
+    op_ca_bb = compute_operator_ca_bb(solution, solution)
+    for i in 1:3
+        da = op_ca_aa[:,:,i,i]
+        db = op_ca_bb[:,:,i,i]
+        rdm1a, rdm1b = compute_1rdm(solution,root=i)
+        @printf(" Trace = %12.8f %12.8f\n", tr(da), tr(db))
+        @printf(" Trace = %12.8f %12.8f\n", tr(rdm1a), tr(rdm1b))
+        good = true
+        good = good && isapprox(tr(da), tr(rdm1a), atol=1e-10)
+        good = good && isapprox(tr(db), tr(rdm1b), atol=1e-10)
+        good = good && isapprox(tr(da), 3.0, atol=1e-10)
+        good = good && isapprox(tr(db), 3.0, atol=1e-10)
+        @test good
+    end
+    #op_ca_ab = compute_operator_ca_ab(solution, solution)
 
     # this is not yet working for some reason
     #
