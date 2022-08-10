@@ -8,13 +8,13 @@
 ## Description of workflow
 
 ### Ansatz 
-A `Ansatz` abstract type contains all the metadata that defines a wavefunction approximation.
+An `Ansatz` abstract type contains all the metadata that defines a wavefunction approximation.
 For example, if we create a `FCIAnsatz` subtype, then this contains the metadata
 needed to diagonalize the Hamiltonian in the FCI basis.  
 Diagonalization of H in a RASCI determinant basis would then require a different 
 subtype, one that specified orbital spaces and such.
-Since a `Ansatz` essentially defines a Slater determinant basis, 
-the combination of a `Ansatz`, and an `InCoreInts` object can fully define 
+Since an `Ansatz` essentially defines a Slater determinant basis, 
+the combination of an `Ansatz`, and an `InCoreInts` object can fully define 
 the action of the operator (defined by the integrals) on a trial state
 (defined by the Ansatz). This is simply a `LinearMap`, provided by the LinearMaps packages.
 
