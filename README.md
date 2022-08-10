@@ -6,23 +6,28 @@
 [![Coverage](https://codecov.io/gh/nmayhall-vt/ActiveSpaceSolvers.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/nmayhall-vt/ActiveSpaceSolvers.jl)
 
 
-This abstract type contains all the metadata that defines a CI basis
-for example, if we subtype a `FCIProblem`, then this contains the metadata
-to diagonalize the Hamiltonian in the FCI basis.  
-Diagonalization of H in a RASCI determinant basis would then be a different 
-subtype.
+## Problem
+A `Problem` abstract type contains all the metadata that defines a CI basis.
+For example, if we create a `FCIProblem` subtype, then this contains the metadata
+needed to diagonalize the Hamiltonian in the FCI basis.  
+Diagonalization of H in a RASCI determinant basis would then require a different 
+subtype, one that specified orbital spaces and such.
 
-Since a Problem essentially defines a Slater determinant basis, 
-the combination of a `Problem`, and an `InCoreInts` can define the operator
-acting on a trial state, which is a `LinearMap`. This type is then 
-extended from the LinearMaps packages.
+## Linear Map
+Since a `Problem` essentially defines a Slater determinant basis, 
+the combination of a `Problem`, and an `InCoreInts` object can fully define 
+the action of the operator defined by the integrals on a trial state
+defined by the problem. This is simply a `LinearMap`, provided by the LinearMaps packages.
 
+## Solver
 A `LinearMap` simply implements the action of our Hamiltnoian on a trial state 
 defined by the `Problem`. By pairing this `LinearMap` with a `Solver` concrete
 subtype, we can then generate our solution, which is a `Solution{P,T}` type. 
 
+## Solution
 A `Solution{P,T}` is then essentially a set of eigenstates for problem, `P`, of
-datatype `T`. This can be used for constructed RDMs and operator matrices.  
+datatype `T`. This can then be used for constructed RDMs and operator matrices, 
+as we wish to do in FermiCG.
 
 ----
 
