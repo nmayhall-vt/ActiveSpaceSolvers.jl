@@ -19,18 +19,24 @@ extended from the LinearMaps packages.
 
 A `LinearMap` simply implements the action of our Hamiltnoian on a trial state 
 defined by the `Problem`. By pairing this `LinearMap` with a `Solver` concrete
-subtype, we can then generate our solution, which is a `CIStates{P,T}` type. 
+subtype, we can then generate our solution, which is a `Solution{P,T}` type. 
 
 A `Solution{P,T}` is then essentially a set of eigenstates for problem, `P`, of
 datatype `T`. This can be used for constructed RDMs and operator matrices.  
 
 ----
 
+1. `Problem` + `InCoreInts` --> `LinearMap`
+2. `LinearMap` + `Solver` --> `Solution`
+
+----
+
 1. `Problem`
-	-`FCIProblem`
-	-`RASCIProblem`
-	-...
+	- `FCIProblem`
+	- `RASCIProblem`
+	- ...
+	
 1. `Solver`
-	-`ArpackSolver`
-	-`Davidson`
-	-...
+	- `ArpackSolver`
+	- `Davidson`
+	- ...
