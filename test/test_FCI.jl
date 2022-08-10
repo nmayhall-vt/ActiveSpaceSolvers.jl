@@ -50,13 +50,14 @@ using NPZ
     @test all(isapprox.(solution.energies.+ints.h0, ref, atol=1e-10))
 
 
+    # test 1RDMs
 
     op_ca_aa = compute_operator_ca_aa(solution, solution)
     op_ca_bb = compute_operator_ca_bb(solution, solution)
     for i in 1:3
         da = op_ca_aa[:,:,i,i]
         db = op_ca_bb[:,:,i,i]
-        rdm1a, rdm1b = compute_1rdm(solution,root=i)
+        rdm1a, rdm1b = compute_1rdm(solution, root=i)
         @printf(" Trace = %12.8f %12.8f\n", tr(da), tr(db))
         @printf(" Trace = %12.8f %12.8f\n", tr(rdm1a), tr(rdm1b))
         good = true

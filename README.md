@@ -59,4 +59,6 @@ display(solution)
 
 e = solution.energies
 v = solution.vectors
+
+rdm1a, rdm1b = compute_1rdm(solution, root=2)
 ```
