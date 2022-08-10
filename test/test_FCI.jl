@@ -41,11 +41,20 @@ using NPZ
     display(e)
     @test all(isapprox.(diag(e.+ints.h0), ref, atol=1e-10))
 
-    solver = ArpackSolver(nroots=3)
+    solver = SolverSettings(nroots=3, package="arpack")
     println(solver)
     solution = solve(problem, ints, solver)
     display(solution)
     @test all(isapprox.(solution.energies.+ints.h0, ref, atol=1e-10))
+    
+
+    # this is not yet working for some reason
+    #
+    #solver = SolverSettings(nroots=3, package="krylovkit")
+    #println(solver)
+    #solution = solve(problem, ints, solver)
+    #display(solution)
+    #@test all(isapprox.(solution.energies.+ints.h0, ref, atol=1e-10))
 
     # string stuff
     #display(ActiveSpaceSolvers.StringCI.string_to_index("110010"))

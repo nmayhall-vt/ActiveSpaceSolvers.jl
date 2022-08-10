@@ -21,6 +21,7 @@ end
 
 function solve(problem::P, ints::InCoreInts{T}, S::ArpackSolver; v0=nothing) where {T, P<:Problem}
     
+    #Hmap = LinOp(ints, problem)
     Hmap = LinearMap(ints, problem)
     
     if v0 == nothing
