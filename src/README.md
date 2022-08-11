@@ -2,11 +2,12 @@
 
 This package currently provides the following functions:
 
-Types
+### Types
 - `Ansatz`
 - `Solution`
 - `SolverSettings`
-Methods 
+
+### Methods 
 - `LinearMap`
 - `build_H_matrix`
 - `solve `
