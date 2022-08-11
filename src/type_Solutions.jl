@@ -28,3 +28,7 @@ function Base.display(S::Solution)
     end
     println()
 end
+
+Base.adjoint(S::Solution) = adjoint(S.vectors)
+Base.:*(S::Solution, M) = S.vectors*M
+Base.:*(M, S::Solution) = M*S.vectors

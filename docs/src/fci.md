@@ -10,7 +10,7 @@ CurrentModule = ActiveSpaceSolvers.FCI
 ### Types 
 ```@autodocs
 Modules = [ActiveSpaceSolvers.FCI]
-Pages   = ["type_FCIAnsatz.jl", "interface.jl"]
+Pages   = ["interface.jl"]
 Order   = [:type]
 ```
 
@@ -19,7 +19,7 @@ Order   = [:type]
 ### Methods
 ```@autodocs
 Modules = [ActiveSpaceSolvers.FCI]
-Pages   = ["FCI/type_FCIAnsatz.jl", "FCI/interface.jl"]
+Pages   = ["FCI/interface.jl"]
 Order   = [:function]
 ```
 ---

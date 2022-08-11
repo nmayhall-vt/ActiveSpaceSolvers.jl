@@ -69,6 +69,17 @@ using NPZ
     end
     #op_ca_ab = compute_operator_ca_ab(solution, solution)
 
+
+    # test S2
+    
+    S2 = solution' * build_S2_matrix(ansatz) * solution
+    for i in 1:3
+        @printf(" %4i S^2 = %12.8f\n", i, S2[i,i])
+    end
+    @test all(isapprox.(diag(S2), [0,2,0], atol=1e-10))
+
+    
+
     # this is not yet working for some reason
     #
     #solver = SolverSettings(nroots=3, package="krylovkit")

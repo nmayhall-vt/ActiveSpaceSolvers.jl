@@ -98,8 +98,7 @@ end
 """
     build_H_matrix(ints, P::FCIAnsatz)
 
-Build the Hamiltonian defined by `ints` in the Slater Determinant Basis 
-in the sector of Fock space specified by `P`
+Build the Hamiltonian defined by `ints` in the Slater Determinant Basis  specified by `P`
 """
 function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts{T}, P::FCIAnsatz) where T
 #={{{=#
@@ -126,6 +125,68 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts{T}, P::FCIAnsatz) wh
     return Hmat
 end
 #=}}}=#
+
+
+"""
+    build_S2_matrix(P::FCIAnsatz)
+
+Build the S2 matrix in the Slater Determinant Basis  specified by `P`
+"""
+function ActiveSpaceSolvers.build_S2_matrix(P::FCIAnsatz) where T
+#={{{=#
+    return build_S2_matrix(P)
+end
+#=}}}=#
+
+
+"""
+    compute_operator_a_a(bra::Solution{FCIAnsatz,T}, ket::Solution{FCIAnsatz,T}) where {T}
+
+Compute representation of a operator between states `bra_v` and `ket_v` for alpha
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_a_a(bra::Solution{FCIAnsatz,T}, 
+                                                 ket::Solution{FCIAnsatz,T}) where {T}
+    #={{{=#
+    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
+    return compute_annihilation(n_orbs(bra), 
+                                n_elec_a(bra), n_elec_b(bra),
+                                n_elec_a(ket), n_elec_b(ket),
+                                bra.vectors, ket.vectors,
+                                "alpha")
+
+    
+#=}}}=#
+end
+
+
+
+"""
+    compute_operator_a_b(bra::Solution{FCIAnsatz,T}, ket::Solution{FCIAnsatz,T}) where {T}
+
+Compute representation of a operator between states `bra_v` and `ket_v` for beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_a_b(bra::Solution{FCIAnsatz,T}, 
+                                                 ket::Solution{FCIAnsatz,T}) where {T}
+    #={{{=#
+    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
+    return compute_annihilation(n_orbs(bra), 
+                                n_elec_a(bra), n_elec_b(bra),
+                                n_elec_a(ket), n_elec_b(ket),
+                                bra.vectors, ket.vectors,
+                                "beta")
+
+    
+#=}}}=#
+end
+
 
 
 """

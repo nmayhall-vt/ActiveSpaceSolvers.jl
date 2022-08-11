@@ -12,10 +12,13 @@ include("type_SolverSettings.jl");
 
 # Interface Methods: extend each for a new `Ansatz`
 function build_H_matrix end     
+function build_S2_matrix end     
 function solve end     
 function compute_1rdm end     
 function compute_1rdm_2rdm end    
 # operator functions
+function compute_operator_a_a end     
+function compute_operator_a_b end     
 function compute_operator_ca_aa end     
 function compute_operator_ca_bb end     
 function compute_operator_ca_ab end     
@@ -37,9 +40,12 @@ export SolverSettings
 # methods 
 export LinearMap 
 export build_H_matrix 
+export build_S2_matrix 
 export solve 
 export compute_1rdm
 export compute_1rdm_2rdm
+export compute_operator_a_a
+export compute_operator_a_b
 export compute_operator_ca_aa      
 export compute_operator_ca_bb      
 export compute_operator_ca_ab      
