@@ -5,12 +5,11 @@ using InCoreIntegrals
 using Printf
 
 # includes
-include("type_FCIAnsatz.jl");
+include("interface.jl");
 include("Helpers.jl");
 include("type_DeterminantString.jl");
 include("TDMs.jl");
 include("inner.jl");
-include("interface.jl");
 
 # import stuff so we can extend and export
 import LinearMaps: LinearMap
