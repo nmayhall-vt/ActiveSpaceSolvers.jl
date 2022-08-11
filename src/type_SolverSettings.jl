@@ -4,7 +4,12 @@ using Arpack
 
 """
 This type contains the solver settings information needed to solve the problem. 
-
+    
+    - nroots::Int
+    - tol::Float64
+    - maxiter::Int
+    - verbose::Int
+    - package::String
 
 """
 struct  SolverSettings 
@@ -16,11 +21,23 @@ struct  SolverSettings
 end
 
 
+"""
+    SolverSettings(;nroots=1, tol=1e-8, maxiter=100, verbose=0, package="arpack")
 
+Default value constructor
+"""
 function SolverSettings(;nroots=1, tol=1e-8, maxiter=100, verbose=0, package="arpack")
     return SolverSettings(nroots, tol, maxiter, verbose, package)
 end
 
+
+"""
+    solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) where {T, A<:Ansatz}
+
+Get the energies and eigenstates (stored as a `Solution{A,T}` type), for the Hamiltonian (defined 
+by `ints`) with the wavefunction approximated by the ansatz (defined by `ansatz`), and passing the 
+solver settings (defined by `S`) to the solver.
+"""
 function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) where {T, A<:Ansatz}
 
     #e = Vector{T}([])
