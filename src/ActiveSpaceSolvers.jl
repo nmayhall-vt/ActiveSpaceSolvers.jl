@@ -14,11 +14,18 @@ include("type_SolverSettings.jl");
 function build_H_matrix end     
 function solve end     
 function compute_1rdm end     
-function compute_2rdm end    
+function compute_1rdm_2rdm end    
 # operator functions
 function compute_operator_ca_aa end     
 function compute_operator_ca_bb end     
 function compute_operator_ca_ab end     
+function compute_operator_cc_aa end     
+function compute_operator_cc_bb end     
+function compute_operator_cc_ab end     
+function compute_operator_cca_aaa end     
+function compute_operator_cca_bbb end     
+function compute_operator_cca_aba end     
+function compute_operator_cca_abb end     
 # methods for getting info from Ansatze
 
 
@@ -32,10 +39,17 @@ export LinearMap
 export build_H_matrix 
 export solve 
 export compute_1rdm
-export compute_2rdm
-export compute_operator_ca_aa
-export compute_operator_ca_bb
-export compute_operator_ca_ab
+export compute_1rdm_2rdm
+export compute_operator_ca_aa      
+export compute_operator_ca_bb      
+export compute_operator_ca_ab      
+export compute_operator_cc_aa      
+export compute_operator_cc_bb      
+export compute_operator_cc_ab      
+export compute_operator_cca_aaa      
+export compute_operator_cca_bbb      
+export compute_operator_cca_aba      
+export compute_operator_cca_abb      
 
 export n_orbs
 export n_elec
