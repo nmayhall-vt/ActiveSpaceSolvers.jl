@@ -262,6 +262,30 @@ end
 """
     compute_operator_cc_aa(bra::Solution{FCIAnsatz,T}, ket::Solution{FCIAnsatz,T}) where {T}
 
+Compute representation of a'a' operators between states `bra_v` and `ket_v` for beta-beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cc_bb(bra::Solution{FCIAnsatz,T}, 
+                                                   ket::Solution{FCIAnsatz,T}) where {T}
+    #={{{=#
+    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
+    return compute_AA(n_orbs(bra), 
+                      n_elec_a(bra), n_elec_b(bra),
+                      n_elec_a(ket), n_elec_b(ket),
+                      bra.vectors, ket.vectors,
+                      "beta")
+
+    
+#=}}}=#
+end
+
+
+"""
+    compute_operator_cc_aa(bra::Solution{FCIAnsatz,T}, ket::Solution{FCIAnsatz,T}) where {T}
+
 Compute representation of a'a' operators between states `bra_v` and `ket_v` for alpha-alpha 
 # Arguments
 - `bra`: solutions for the left hand side
