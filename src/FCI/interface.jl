@@ -468,7 +468,7 @@ end
 
 
 """
-    svd_state(sol::Solution{FCIAnsatz,T)
+    svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,svd_thresh; root=1) where T
 Do an SVD of the FCI vector partitioned into clusters with (norbs1 | norbs2)
 where the orbitals are assumed to be ordered for cluster 1| cluster 2 haveing norbs1 and 
 norbs2, respectively.
@@ -482,7 +482,7 @@ norbs2, respectively.
 function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,svd_thresh; root=1) where T
     #={{{=#
 
-    @assert(norbs1+norbs2 ==P.no)
+    @assert(norbs1+norbs2 ==sol.no)
 
     schmidt_basis = OrderedDict()
     #vector = OrderedDict{Tuple{UInt8,UInt8},Float64}()
@@ -495,8 +495,8 @@ function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,s
     println("----------------------------------------")
 
     # Create ci_strings
-    ket_a = DeterminantString(P.no, P.na)
-    ket_b = DeterminantString(P.no, P.nb)
+    ket_a = DeterminantString(sol.no, sol.na)
+    ket_b = DeterminantString(sol.no, sol.nb)
     
     v = sol.vectors[:,root]
     v = reshape(v,(ket_a.max, ket_b.max))
@@ -555,7 +555,7 @@ function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,s
 
         #when swapping alpha2 and beta1 do we flip sign?
         sign = 1
-        if (P.na-fock[1])%2==1 && fock[2]%2==1
+        if (sol.na-fock[1])%2==1 && fock[2]%2==1
             sign = -1
         end
         #println("sign",sign)
