@@ -82,4 +82,5 @@ n_elec_a(a::Solution) = n_elec_a(a.ansatz)
 n_elec_b(a::Solution) = n_elec_b(a.ansatz)
 dim(a::Solution) = dim(a.ansatz)
 
+Base.size(a::Solution, i::Integer) = size(a.vectors,i)
 end
