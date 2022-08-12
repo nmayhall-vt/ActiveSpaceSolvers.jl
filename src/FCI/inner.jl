@@ -1052,7 +1052,6 @@ norbs2, respectively.
 - `svd_thresh`: the threshold below which the states will be discarded
 """
 function svd_state(v,P::FCIAnsatz,norbs1,norbs2,svd_thresh)
-
     #={{{=#
 
     @assert(norbs1+norbs2 ==P.no)

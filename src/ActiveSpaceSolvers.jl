@@ -29,6 +29,8 @@ function compute_operator_cca_aaa end
 function compute_operator_cca_bbb end     
 function compute_operator_cca_aba end     
 function compute_operator_cca_abb end     
+# analysis
+function svd_state end     
 # methods for getting info from Ansatze
 
 
@@ -56,6 +58,7 @@ export compute_operator_cca_aaa
 export compute_operator_cca_bbb      
 export compute_operator_cca_aba      
 export compute_operator_cca_abb      
+export svd_state
 
 export n_orbs
 export n_elec
