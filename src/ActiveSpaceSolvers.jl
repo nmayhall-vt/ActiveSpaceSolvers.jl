@@ -2,7 +2,15 @@ module ActiveSpaceSolvers
 using LinearMaps
 using InCoreIntegrals 
 using Printf
+using InteractiveUtils
 
+# solve is exported by several packages.
+# check if its defined, and if so, extend it
+if @isdefined(solve)
+    println(" Solve already defined: extend it. ", @which solve)
+    a = @which solve
+    eval(Meta.parse("import $a.solve"))
+end    
 
 # Interface Types
 abstract type Ansatz end        
