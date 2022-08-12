@@ -1,6 +1,6 @@
 using ActiveSpaceSolvers
 import LinearMaps
-
+using OrderedCollections
 
 """
 Type containing all the metadata needed to define a FCI problem 
@@ -482,7 +482,7 @@ norbs2, respectively.
 function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,svd_thresh; root=1) where T
     #={{{=#
 
-    @assert(norbs1+norbs2 ==sol.no)
+    @assert(norbs1+norbs2 == n_orbs(sol))
 
     schmidt_basis = OrderedDict()
     #vector = OrderedDict{Tuple{UInt8,UInt8},Float64}()
@@ -495,8 +495,8 @@ function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,s
     println("----------------------------------------")
 
     # Create ci_strings
-    ket_a = DeterminantString(sol.no, sol.na)
-    ket_b = DeterminantString(sol.no, sol.nb)
+    ket_a = DeterminantString(n_orbs(sol), n_elec_a(sol))
+    ket_b = DeterminantString(n_orbs(sol), n_elec_b(sol))
     
     v = sol.vectors[:,root]
     v = reshape(v,(ket_a.max, ket_b.max))
@@ -508,14 +508,27 @@ function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,s
 
 
     # Get the fock space using the bisect method in python
-    bisect = pyimport("bisect")
+    #bisect = pyimport("bisect")
     for I in 1:ket_a.max
-        fock_labels_a[I] = bisect.bisect(ket_a.config,norbs1)
-        #print("nick: ", ket_a.config, " " , norbs1, " ", fock_labels_a[I], "\n")
+        label = 0
+        for i in 1:length(ket_a.config)
+            if ket_a.config[i] <= norbs1
+                label += 1
+            end
+        end
+        fock_labels_a[I] = label
+        #println(ket_a.config, " ", norbs1, " ", label)
         incr!(ket_a)
     end
     for I in 1:ket_b.max
-        fock_labels_b[I] = bisect.bisect(ket_b.config,norbs1)
+        label = 0
+        for i in 1:length(ket_b.config)
+            if ket_b.config[i] <= norbs1
+                label += 1
+            end
+        end
+        fock_labels_b[I] = label
+        #println(ket_b.config, " ", norbs1, " ", label)
         incr!(ket_b)
     end
     for J in 1:ket_b.max
@@ -543,8 +556,8 @@ function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,s
         ket_a1 = DeterminantString(norbs1, fock[1])
         ket_b1 = DeterminantString(norbs1, fock[2])
 
-        ket_a2 = DeterminantString(norbs2, P.na - fock[1])
-        ket_b2 = DeterminantString(norbs2, P.nb - fock[2])
+        ket_a2 = DeterminantString(norbs2, n_elec_a(sol) - fock[1])
+        ket_b2 = DeterminantString(norbs2, n_elec_b(sol) - fock[2])
 
 
         temp_fvec = reshape(fvec,ket_b1.max*ket_b2.max,ket_a1.max*ket_a2.max)'
@@ -555,7 +568,7 @@ function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,s
 
         #when swapping alpha2 and beta1 do we flip sign?
         sign = 1
-        if (sol.na-fock[1])%2==1 && fock[2]%2==1
+        if (n_elec_a(sol)-fock[1])%2==1 && fock[2]%2==1
             sign = -1
         end
         #println("sign",sign)

@@ -79,6 +79,8 @@ using NPZ
     @test all(isapprox.(diag(S2), [0,2,0], atol=1e-10))
 
     
+    # test SVD
+    a = svd_state(solution, 3, 3, 1e-3) 
 
     # this is not yet working for some reason
     #
