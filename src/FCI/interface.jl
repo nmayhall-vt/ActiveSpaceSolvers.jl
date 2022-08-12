@@ -479,7 +479,7 @@ norbs2, respectively.
 - `svd_thresh`: the threshold below which the states will be discarded
 - `root`: which root to SVD
 """
-function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,svd_thresh; root=1)
+function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,svd_thresh; root=1) where T
     #={{{=#
 
     @assert(norbs1+norbs2 ==P.no)
