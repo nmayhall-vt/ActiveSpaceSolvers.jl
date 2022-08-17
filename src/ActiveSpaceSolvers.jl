@@ -3,6 +3,8 @@ using LinearMaps
 using InCoreIntegrals 
 using Printf
 using BlockDavidson
+using InteractiveUtils
+
 
 # Interface Types
 abstract type Ansatz end        

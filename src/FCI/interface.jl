@@ -89,6 +89,7 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::FCIAnsatz)
 
         v = reshape(v, ket_a.max*ket_b.max, nr)
         sig = reshape(sig, ket_a.max*ket_b.max, nr)
+        sig .+= ints.h0*v
         return sig 
     end
     return LinearMap(mymatvec, prb.dim, prb.dim; issymmetric=true, ismutating=false, ishermitian=true)
@@ -122,7 +123,7 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts{T}, P::FCIAnsatz) wh
     Hmat += compute_ab_terms_full(ints, P, T=T)
     
     Hmat = .5*(Hmat+Hmat')
-
+    Hmat += 1.0I*ints.h0
     return Hmat
 end
 #=}}}=#
