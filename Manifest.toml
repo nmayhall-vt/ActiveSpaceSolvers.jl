@@ -55,7 +55,7 @@ version = "1.3.1"
 
 [[deps.BlockDavidson]]
 deps = ["InteractiveUtils", "LinearAlgebra", "LinearMaps", "Printf", "Random"]
-git-tree-sha1 = "99d5082ca6bf43150466f4b5b606814194ec353d"
+git-tree-sha1 = "de2a92eea574e4b88313ed9d31ebb0fa849f586b"
 repo-rev = "main"
 repo-url = "https://github.com/nmayhall-vt/BlockDavidson.jl"
 uuid = "b4c031f8-e7c9-4879-896c-063a10ff8103"

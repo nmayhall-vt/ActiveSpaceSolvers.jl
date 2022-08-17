@@ -49,6 +49,14 @@ using NPZ
     display(solution)
     @test all(isapprox.(solution.energies.+ints.h0, ref, atol=1e-10))
 
+    # davidson
+    #
+    solver = SolverSettings(nroots=3, package="davidson")
+    println(solver)
+    solution = solve(ints, ansatz, solver)
+    display(solution)
+    @test all(isapprox.(solution.energies.+ints.h0, ref, atol=1e-10))
+
 
     # test 1RDMs
 

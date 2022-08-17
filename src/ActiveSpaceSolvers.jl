@@ -11,6 +11,7 @@ include("type_SolverSettings.jl");
 
 
 # Interface Methods: extend each for a new `Ansatz`
+function solve end     
 function build_H_matrix end     
 function build_S2_matrix end     
 function compute_1rdm end     
