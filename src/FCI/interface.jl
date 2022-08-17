@@ -2,6 +2,7 @@ using ActiveSpaceSolvers
 import LinearMaps
 using OrderedCollections
 
+import BlockDavidson: solve
 """
 Type containing all the metadata needed to define a FCI problem 
 

@@ -2,7 +2,7 @@ module ActiveSpaceSolvers
 using LinearMaps
 using InCoreIntegrals 
 using Printf
-
+using BlockDavidson
 
 # Interface Types
 abstract type Ansatz end        
@@ -13,7 +13,6 @@ include("type_SolverSettings.jl");
 # Interface Methods: extend each for a new `Ansatz`
 function build_H_matrix end     
 function build_S2_matrix end     
-function solve end     
 function compute_1rdm end     
 function compute_1rdm_2rdm end    
 # operator functions
