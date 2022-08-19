@@ -76,7 +76,7 @@ using NPZ
     for i in 1:3
         @printf(" %4i S^2 = %12.8f\n", i, S2[i,i])
     end
-    @test all(isapprox.(diag(S2), [0,2,0], atol=1e-10))
+    @test all(isapprox.(diag(S2), [0,2,0], atol=1e-8))
 
     
     # test SVD
