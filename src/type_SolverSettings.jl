@@ -9,7 +9,7 @@ This type contains the solver settings information needed to solve the problem.
     - tol::Float64
     - maxiter::Int
     - verbose::Int
-    - package::String
+    - package::String ["arpack", "davidson"]
 
 """
 struct  SolverSettings 
@@ -18,6 +18,8 @@ struct  SolverSettings
     maxiter::Int
     verbose::Int
     package::String
+    max_ss_vecs::Int
+    lindep_thresh::Float64
 end
 
 
@@ -26,8 +28,16 @@ end
 
 Default value constructor
 """
-function SolverSettings(;nroots=1, tol=1e-8, maxiter=100, verbose=0, package="arpack")
-    return SolverSettings(nroots, tol, maxiter, verbose, package)
+function SolverSettings(;   
+                            nroots=1, 
+                            tol     =1e-8, 
+                            maxiter =100, 
+                            verbose =0, 
+                            package ="arpack",
+                            max_ss_vecs = 8,
+                            lindep_thresh = 1e-10
+    )
+    return SolverSettings(nroots, tol, maxiter, verbose, package, max_ss_vecs, lindep_thresh)
 end
 
 
@@ -37,6 +47,14 @@ end
 Get the energies and eigenstates (stored as a `Solution{A,T}` type), for the Hamiltonian (defined 
 by `ints`) with the wavefunction approximated by the ansatz (defined by `ansatz`), and passing the 
 solver settings (defined by `S`) to the solver.
+
+# Arguments
+- `ints`: Integrals
+- `ansatz`: Subtype of the abstract type, `Ansatz`
+- `S`: SolverSettings
+- `v0`: initial guess (optional).
+    If provided with "davidson", it needs to have number of columns equal to number of roots sought.
+    If provided with "arpack", it can only be one vector.
 """
 function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) where {T, A<:Ansatz}
 
@@ -54,11 +72,21 @@ function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) wh
         end
         return Solution{A,T}(ansatz, e, v)
 
+    elseif lowercase(S.package) == "davidson"
+        Hmap = LinearMap(ints, ansatz)
+        dav = Davidson(Hmap; 
+                       max_iter=S.maxiter, 
+                       max_ss_vecs=S.max_ss_vecs, 
+                       tol=S.tol, 
+                       nroots=S.nroots, 
+                       v0=v0, 
+                       lindep_thresh=S.lindep_thresh)
+        e,v = BlockDavidson.eigs(dav)
+        return Solution{A,T}(ansatz, e, v)
 
-    elseif lowercase(S.package) == "krylovkit"
-        
-        error("NYI")
-
+#    elseif lowercase(S.package) == "krylovkit"
+#        
+#
 #        Hmap = LinOp(ints, ansatz)
 #
 #        if v0 == nothing
