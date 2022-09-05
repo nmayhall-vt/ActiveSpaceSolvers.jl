@@ -50,7 +50,11 @@ function FCIAnsatz(no, na, nb)
     return FCIAnsatz(no, na, nb, dima, dimb, dima*dimb, false, false, 1, "direct", 1)
 end
 
-function display(p::FCIAnsatz)
+function Base.display(p::FCIAnsatz)
+    @printf(" FCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Dimension: %-9i\n",p.no,p.na,p.nb,p.dim)
+end
+
+function Base.print(p::FCIAnsatz)
     @printf(" FCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Dimension: %-9i\n",p.no,p.na,p.nb,p.dim)
 end
 
