@@ -6,8 +6,8 @@ using Test
 using Arpack
 using NPZ
 
-#@testset "FCI" begin
-function run()
+@testset "FCI" begin
+#function run()
    
     h0 = npzread("h6_sto3g/h0.npy")
     h1 = npzread("h6_sto3g/h1.npy")
@@ -86,13 +86,12 @@ function run()
     end
 
     for p in 1:no, q in 1:no, r in 1:no, s in 1:no
-        e += .5 * ints.h2[p,q,r,s] * daa[p,r,s,q]
-        e += .5 * ints.h2[p,q,r,s] * dbb[p,r,s,q]
-        e +=      ints.h2[p,q,r,s] * dab[p,r,s,q]
+        e += .5 * ints.h2[p,q,r,s] * daa[p,q,r,s]
+        e += .5 * ints.h2[p,q,r,s] * dbb[p,q,r,s]
+        e +=      ints.h2[p,q,r,s] * dab[p,q,r,s]
     end
     
-    @printf(" Nick's energy: %12.8f\n", e)
-    return
+    @test isapprox(e, ref_e) 
     # test S2
     
     S2 = solution' * build_S2_matrix(ansatz) * solution
@@ -117,4 +116,4 @@ function run()
     #display(ActiveSpaceSolvers.StringCI.string_to_index("110010"))
     @test ActiveSpaceSolvers.FCI.string_to_index("110010") == 19
 end
-run()
+#run()

@@ -1208,6 +1208,9 @@ end
 
 
 """
+    compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) where T
+
+Compute the 1 and 2 rdm's, in pyscf order
 """
 function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) where T
     #={{{=#
@@ -1288,9 +1291,9 @@ function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) whe
                         L = calc_linear_index(bra)
 
                         if bra.sign == 1
-                            @views rdm2aa[p,q,r,s] += dot(vl[L,:], vr[Ka,:])
+                            @views rdm2aa[p,s,q,r] += dot(vl[L,:], vr[Ka,:])
                         elseif bra.sign == -1
-                            @views rdm2aa[p,q,r,s] -= dot(vl[L,:], vr[Ka,:])
+                            @views rdm2aa[p,s,q,r] -= dot(vl[L,:], vr[Ka,:])
                         else
                             error(" Shouldn't be here")
                         end
@@ -1354,9 +1357,9 @@ function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) whe
                         L = calc_linear_index(bra)
 
                         if bra.sign == 1
-                            @views rdm2bb[p,q,r,s] += dot(vl[:,L], vr[:,Kb])
+                            @views rdm2bb[p,s,q,r] += dot(vl[:,L], vr[:,Kb])
                         elseif bra.sign == -1
-                            @views rdm2bb[p,q,r,s] -= dot(vl[:,L], vr[:,Kb])
+                            @views rdm2bb[p,s,q,r] -= dot(vl[:,L], vr[:,Kb])
                         else
                             error(" Shouldn't be here")
                         end
@@ -1387,7 +1390,7 @@ function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) whe
                             Lb != 0 || continue
                   
                             sign = sign_a*sign_b
-                            rdm2ab[p,q,r,s] += vl[La,Lb] * vr[Ka,Kb] * sign
+                            rdm2ab[p,s,q,r] += vl[La,Lb] * vr[Ka,Kb] * sign
                         end
                     end
                 end
