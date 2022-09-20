@@ -1381,9 +1381,8 @@ function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) whe
                    
                     La != 0 || continue
 
-                    for q in get_unoccupied(ket_b) 
-                        for r in ket_b.config
-                    
+                    for q in 1:ket_b.no 
+                        for r in 1:ket_b.no 
                             sign_b, Lb = ket_b_lookup[Kb][q+(r-1)*ket_b.no]
                             Lb != 0 || continue
                   
