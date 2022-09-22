@@ -116,5 +116,23 @@ using NPZ
     # string stuff
     #display(ActiveSpaceSolvers.StringCI.string_to_index("110010"))
     @test ActiveSpaceSolvers.FCI.string_to_index("110010") == 19
+    
+    # test single dimension cases
+    ansatz = FCIAnsatz(norb, norb, norb)
+    solution = solve(ints, ansatz, solver)
+    display(solution)
+
+    ansatz = FCIAnsatz(norb, norb, 0)
+    solution = solve(ints, ansatz, solver)
+    display(solution)
+    
+    ansatz = FCIAnsatz(norb, 0, norb)
+    solution = solve(ints, ansatz, solver)
+    display(solution)
+    @test isapprox(solution.energies[1], -0.131427758762, atol=1e-9)
+    
+    ansatz = FCIAnsatz(norb, 0, 0)
+    solution = solve(ints, ansatz, solver)
+    display(solution)
 end
 #run()
