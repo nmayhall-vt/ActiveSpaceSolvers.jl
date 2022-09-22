@@ -1,8 +1,9 @@
 using ActiveSpaceSolvers
+using QCBase
 import LinearMaps
 using OrderedCollections
 
-import BlockDavidson: solve
+#import BlockDavidson: solve
 """
 Type containing all the metadata needed to define a FCI problem 
 
@@ -157,8 +158,8 @@ Compute representation of a operator between states `bra_v` and `ket_v` for alph
 function ActiveSpaceSolvers.compute_operator_a_a(bra::Solution{FCIAnsatz,T}, 
                                                  ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_annihilation(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_annihilation(n_orb(bra), 
                                 n_elec_a(bra), n_elec_b(bra),
                                 n_elec_a(ket), n_elec_b(ket),
                                 bra.vectors, ket.vectors,
@@ -182,8 +183,8 @@ Compute representation of a operator between states `bra_v` and `ket_v` for beta
 function ActiveSpaceSolvers.compute_operator_a_b(bra::Solution{FCIAnsatz,T}, 
                                                  ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_annihilation(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_annihilation(n_orb(bra), 
                                 n_elec_a(bra), n_elec_b(bra),
                                 n_elec_a(ket), n_elec_b(ket),
                                 bra.vectors, ket.vectors,
@@ -207,8 +208,8 @@ Compute representation of a'a operators between states `bra_v` and `ket_v` for a
 function ActiveSpaceSolvers.compute_operator_ca_aa(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_Aa(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_Aa(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors,
@@ -230,8 +231,8 @@ Compute representation of a'a operators between states `bra_v` and `ket_v` for b
 function ActiveSpaceSolvers.compute_operator_ca_bb(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_Aa(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_Aa(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors,
@@ -254,8 +255,8 @@ Compute representation of a'a operators between states `bra_v` and `ket_v` for a
 function ActiveSpaceSolvers.compute_operator_ca_ab(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_Ab(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_Ab(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors)
@@ -277,8 +278,8 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 function ActiveSpaceSolvers.compute_operator_cc_bb(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_AA(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_AA(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors,
@@ -301,8 +302,8 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 function ActiveSpaceSolvers.compute_operator_cc_aa(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_AA(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_AA(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors,
@@ -325,8 +326,8 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 function ActiveSpaceSolvers.compute_operator_cc_ab(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_AB(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_AB(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors)
@@ -348,8 +349,8 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 function ActiveSpaceSolvers.compute_operator_cca_aaa(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_AAa(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_AAa(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors, 
@@ -372,8 +373,8 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 function ActiveSpaceSolvers.compute_operator_cca_bbb(bra::Solution{FCIAnsatz,T}, 
                                                    ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_AAa(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_AAa(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors, 
@@ -396,8 +397,8 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 function ActiveSpaceSolvers.compute_operator_cca_aba(bra::Solution{FCIAnsatz,T}, 
                                                      ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_ABa(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_ABa(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors)
@@ -419,8 +420,8 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 function ActiveSpaceSolvers.compute_operator_cca_abb(bra::Solution{FCIAnsatz,T}, 
                                                      ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
-    n_orbs(bra) == n_orbs(ket) || throw(DimensionMismatch) 
-    return compute_ABb(n_orbs(bra), 
+    n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
+    return compute_ABb(n_orb(bra), 
                       n_elec_a(bra), n_elec_b(bra),
                       n_elec_a(ket), n_elec_b(ket),
                       bra.vectors, ket.vectors)
@@ -437,14 +438,14 @@ end
 function ActiveSpaceSolvers.compute_1rdm(sol::Solution{FCIAnsatz,T}; root=1) where {T}
     #={{{=#
 
-    rdma = compute_Aa(n_orbs(sol),
+    rdma = compute_Aa(n_orb(sol),
                       n_elec_a(sol), n_elec_b(sol),                     
                       n_elec_a(sol), n_elec_b(sol),                     
                       reshape(sol.vectors[:,root], dim(sol), 1), 
                       reshape(sol.vectors[:,root], dim(sol), 1), 
                       "alpha") 
 
-    rdmb = compute_Aa(n_orbs(sol),
+    rdmb = compute_Aa(n_orb(sol),
                       n_elec_a(sol), n_elec_b(sol),                     
                       n_elec_a(sol), n_elec_b(sol),                     
                       reshape(sol.vectors[:,root], dim(sol), 1), 
@@ -452,8 +453,8 @@ function ActiveSpaceSolvers.compute_1rdm(sol::Solution{FCIAnsatz,T}; root=1) whe
                       "beta") 
 
 
-    rdma = reshape(rdma, n_orbs(sol), n_orbs(sol))
-    rdmb = reshape(rdmb, n_orbs(sol), n_orbs(sol))
+    rdma = reshape(rdma, n_orb(sol), n_orb(sol))
+    rdmb = reshape(rdmb, n_orb(sol), n_orb(sol))
     return rdma, rdmb
 end
 #=}}}=#
@@ -488,7 +489,7 @@ norbs2, respectively.
 function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,svd_thresh; root=1) where T
     #={{{=#
 
-    @assert(norbs1+norbs2 == n_orbs(sol))
+    @assert(norbs1+norbs2 == n_orb(sol))
 
     schmidt_basis = OrderedDict()
     #vector = OrderedDict{Tuple{UInt8,UInt8},Float64}()
@@ -501,8 +502,8 @@ function ActiveSpaceSolvers.svd_state(sol::Solution{FCIAnsatz,T},norbs1,norbs2,s
     println("----------------------------------------")
 
     # Create ci_strings
-    ket_a = DeterminantString(n_orbs(sol), n_elec_a(sol))
-    ket_b = DeterminantString(n_orbs(sol), n_elec_b(sol))
+    ket_a = DeterminantString(n_orb(sol), n_elec_a(sol))
+    ket_b = DeterminantString(n_orb(sol), n_elec_b(sol))
     
     v = sol.vectors[:,root]
     v = reshape(v,(ket_a.max, ket_b.max))

@@ -1,3 +1,4 @@
+using QCBase
 using ActiveSpaceSolvers
 using InCoreIntegrals
 using LinearAlgebra

@@ -1,4 +1,5 @@
 module ActiveSpaceSolvers
+using QCBase
 using LinearMaps
 using InCoreIntegrals 
 using Printf
@@ -62,7 +63,6 @@ export compute_operator_cca_aba
 export compute_operator_cca_abb      
 export svd_state
 
-export n_orbs
 export n_elec
 export n_elec_a
 export n_elec_b
@@ -75,13 +75,13 @@ export FCIAnsatz
 
 
 # some methods
-n_orbs(a::Ansatz) = a.no 
 n_elec(a::Ansatz) = a.na + a.nb 
 n_elec_a(a::Ansatz) = a.na     
 n_elec_b(a::Ansatz) = a.nb     
 dim(a::Ansatz) = a.dim 
 
-n_orbs(a::Solution) = n_orbs(a.ansatz)
+QCBase.n_orb(a::Ansatz) = a.no 
+QCBase.n_orb(a::Solution) = n_orb(a.ansatz)
 n_elec(a::Solution) = n_elec(a.ansatz)
 n_elec_a(a::Solution) = n_elec_a(a.ansatz)
 n_elec_b(a::Solution) = n_elec_b(a.ansatz)
