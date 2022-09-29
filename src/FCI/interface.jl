@@ -2,6 +2,7 @@ using ActiveSpaceSolvers
 using QCBase
 import LinearMaps
 using OrderedCollections
+using BlockDavidson
 
 #import BlockDavidson: solve
 """
@@ -98,6 +99,48 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::FCIAnsatz)
         return sig 
     end
     return LinearMap(mymatvec, prb.dim, prb.dim; issymmetric=true, ismutating=false, ishermitian=true)
+end
+#=}}}=#
+
+
+"""
+    LinOpMat(ints, prb::FCIAnsatz)
+
+Get LinearMap with takes a vector and returns action of H on that vector
+
+# Arguments
+- ints: `InCoreInts` object
+- prb:  `FCIAnsatz` object
+"""
+function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::FCIAnsatz) where T
+    #={{{=#
+    ket_a = DeterminantString(prb.no, prb.na)
+    ket_b = DeterminantString(prb.no, prb.nb)
+
+    #@btime lookup_a = $fill_ca_lookup2($ket_a)
+    lookup_a = fill_ca_lookup2(ket_a)
+    lookup_b = fill_ca_lookup2(ket_b)
+    iters = 0
+    function mymatvec(v)
+        iters += 1
+        #@printf(" Iter: %4i\n", iters)
+        nr = 0
+        if length(size(v)) == 1
+            nr = 1
+            v = reshape(v,ket_a.max*ket_b.max, nr)
+        else 
+            nr = size(v)[2]
+        end
+        v = reshape(v, ket_a.max, ket_b.max, nr)
+        sig = compute_ab_terms2(v, ints, prb, lookup_a, lookup_b)
+        sig += compute_ss_terms2(v, ints, prb, lookup_a, lookup_b)
+
+        v = reshape(v, ket_a.max*ket_b.max, nr)
+        sig = reshape(sig, ket_a.max*ket_b.max, nr)
+        sig .+= ints.h0*v
+        return sig 
+    end
+    return LinOpMat{T}(mymatvec, prb.dim, true)
 end
 #=}}}=#
 

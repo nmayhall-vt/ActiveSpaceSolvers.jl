@@ -1,8 +1,10 @@
 using ActiveSpaceSolvers
 using Arpack
 using LinearAlgebra
-#using KrylovKit 
-
+using KrylovKit 
+using LinearMaps
+        
+LinearAlgebra.ishermitian(lop::LinOpMat) = return lop.sym
 """
 This type contains the solver settings information needed to solve the problem. 
     
@@ -32,7 +34,7 @@ Default value constructor
 function SolverSettings(;   
                             nroots=1, 
                             tol     =1e-8, 
-                            maxiter =100, 
+                            maxiter =2000, 
                             verbose =0, 
                             package ="arpack",
                             max_ss_vecs = 8,
@@ -66,15 +68,23 @@ function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) wh
         F = eigen(H)
         return Solution{A,T}(ansatz, F.values, F.vectors)
     end
+    e = Vector{T}([])
+    v = zeros(T, 1,1) 
 
     if lowercase(S.package) == "arpack"
 
         Hmap = LinearMap(ints, ansatz)
 
         if v0 == nothing
-            e,v = Arpack.eigs(Hmap, nev = S.nroots, which=:SR, tol=S.tol)
+            e,v = Arpack.eigs(Hmap, nev = S.nroots, which=:SR, tol=S.tol, maxiter=S.maxiter)
+            #try
+            #    e,v = Arpack.eigs(Hmap, nev = S.nroots, which=:SR, tol=S.tol, maxiter=S.maxiter)
+            #catch err
+            #    println("Warning: ", err)
+            #end
+
         else
-            e,v = Arpack.eigs(Hmap, v0=v0[:,1], nev = S.nroots, which=:SR, tol=S.tol)
+            e,v = Arpack.eigs(Hmap, v0=v0[:,1], nev = S.nroots, which=:SR, tol=S.tol, maxiter=S.maxiter)
         end
         return Solution{A,T}(ansatz, e, v)
 
@@ -93,30 +103,20 @@ function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) wh
 #    elseif lowercase(S.package) == "krylovkit"
 #        
 #
-#        Hmap = LinOp(ints, ansatz)
+#        Hmap = LinOpMat(ints, ansatz)
+#        
+#        display(ansatz)
+#        display(norm(Hmap*rand(3920,1)))
 #
-#        if v0 == nothing
-#            e, v, info = KrylovKit.eigsolve(Hmap, S.nroots, :SR, 
-#                                            verbosity   = S.verbose, 
-#                                            maxiter     = S.maxiter, 
-#                                            #krylovdim  = 20, 
-#                                            issymmetric = issymmetric(Hmap), 
-#                                            ishermitian = ishermitian(Hmap), 
-#                                            eager       = true,
-#                                            tol         = S.tol)
-#            v = hcat(v[1:R]...)
-#        else
-#            error("huh")     
-#            e, v, info = KrylovKit.eigsolve(Hmap, v0, S.nroots, :SR, 
-#                                            verbosity   = S.verbose, 
-#                                            maxiter     = S.maxiter, 
-#                                            #krylovdim  = 20, 
-#                                            issymmetric = issymmetric(Hmap), 
-#                                            ishermitian = ishermitian(Hmap), 
-#                                            eager       = true,
-#                                            tol         = S.tol)
-#            v = hcat(v[1:R]...)
-#        end
+#        e, v, info = KrylovKit.eigsolve(Hmap, S.nroots, :SR, 
+#                                        #verbosity   = S.verbose, 
+#                                        maxiter     = S.maxiter, 
+#                                        #krylovdim  = 20, 
+#                                        issymmetric = issymmetric(Hmap), 
+#                                        ishermitian = true, 
+#                                        eager       = true,
+#                                        tol         = S.tol)
+#        v = hcat(v[1:R]...)
 #        if S.verbose > 0
 #            @printf(" Number of matvecs performed: %5i\n", info.numops)
 #            @printf(" Number of subspace restarts: %5i\n", info.numiter)
