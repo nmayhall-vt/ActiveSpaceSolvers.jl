@@ -143,6 +143,78 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::FCIAnsatz)
 end
 #=}}}=#
 
+"""
+"""
+function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::FCIAnsatz)
+    #={{{=#
+    no = ansatz.no
+    na = ansatz.na
+    nb = ansatz.nb
+
+    if na + 1 > no
+        error(" Can't decrease Ms further")
+    end
+    
+    #   Create ci_strings
+    ket_a = DeterminantString(no, na)
+    ket_b = DeterminantString(no, nb)
+    bra_a = DeterminantString(no, na+1)
+    bra_b = DeterminantString(no, nb-1)
+    bra_a2 = DeterminantString(no, na+1)
+    bra_b2 = DeterminantString(no, nb-1)
+    
+    sgnK = 1
+    if ket_a.ne % 2 != 0 
+        sgnK = -sgnK
+    end
+
+    w = zeros(bra_a.max * bra_b.max, size(v,2))
+
+    reset!(ket_b)
+    for Kb in 1:ket_b.max
+
+        reset!(ket_a)
+        for Ka in 1:ket_a.max
+            K = Ka + (Kb-1) * ket_a.max
+
+
+            #for ai in ket_a.config
+            #    if ai ∉ ket_b.config
+            for ai in 1:no
+
+                bra_a = deepcopy(ket_a)
+                bra_b = deepcopy(ket_b)
+
+                apply_creation!(bra_a,ai)
+                bra_a.sign != 0 || continue
+
+                apply_annihilation!(bra_b,ai)
+                bra_b.sign != 0 || continue
+
+                La = calc_linear_index(bra_a)
+                Lb = calc_linear_index(bra_b)
+    
+                L = La + (Lb-1) * bra_a2.max
+                w[L,:] .+= sgnK * bra_a.sign * bra_b.sign * v[K,:]
+            end
+            incr!(ket_a)
+        end
+        incr!(ket_b)
+    end
+
+    #only keep the states that aren't zero (that weren't killed by S-)
+    wout = zeros(size(w,1),0)
+    for i in 1:size(w,2)
+        ni = norm(w[:,i])
+        if isapprox(ni, 0, atol=1e-4) == false
+            wout = hcat(wout, w[:,i]./ni)
+        end
+    end
+
+    return wout, FCIAnsatz(no, na+1, nb-1)
+end
+#=}}}=#
+
 
 
 """

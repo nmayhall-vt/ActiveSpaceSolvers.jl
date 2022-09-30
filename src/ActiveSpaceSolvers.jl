@@ -34,6 +34,7 @@ function compute_operator_cca_aba end
 function compute_operator_cca_abb end     
 function compute_s2 end
 function apply_sminus end
+function apply_splus end
 # analysis
 function svd_state end     
 # methods for getting info from Ansatze
@@ -65,6 +66,7 @@ export compute_operator_cca_aba
 export compute_operator_cca_abb      
 export svd_state
 export apply_sminus
+export apply_splus
 
 export n_elec
 export n_elec_a

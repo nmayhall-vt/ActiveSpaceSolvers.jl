@@ -49,7 +49,7 @@ using NPZ
 
     solver = SolverSettings(nroots=20, package="arpack")
     println(solver)
-    solution = solve(ints, ansatz, solver)
+    @time solution = solve(ints, ansatz, solver)
     display(solution)
 
     S2 = build_S2_matrix(solution.ansatz)
@@ -66,9 +66,10 @@ using NPZ
     @test round(s2[4]) == 0
     @test round(s2[5]) == 2
     
-    
+
+    # S-
     v1 = solution.vectors[:,1:15]
-    v2, ansatz2 = apply_sminus(v1, solution.ansatz)
+    @time v2, ansatz2 = apply_sminus(v1, solution.ansatz)
     v3, ansatz3 = apply_sminus(v2, ansatz2)
 
     Hmap2 = LinearMap(ints, ansatz2)
@@ -86,7 +87,26 @@ using NPZ
     println()
     @test isapprox(e1[2], e2[1], atol=1e-12)
     @test isapprox(e1[15], e3[1], atol=1e-12)
-    #s2 = compute_s2(solution)
 
+    # S+
+    v1 = solution.vectors[:,1:15]
+    @time v2, ansatz2 = apply_splus(v1, solution.ansatz)
+    v3, ansatz3 = apply_splus(v2, ansatz2)
+
+    Hmap2 = LinearMap(ints, ansatz2)
+    Hmap3 = LinearMap(ints, ansatz3)
+    println(" new e")
+    e1 = diag(Matrix(v1'*(Hmap*v1)))
+    e2 = diag(Matrix(v2'*(Hmap2*v2)))
+    
+    e3 = diag(Matrix(v3'*(Hmap3*v3)))
+    display(ansatz)
+    display(e1)
+    display(ansatz2)
+    display(e2)
+    display(ansatz3)
+    display(e3)
+    @test isapprox(e1[2], e2[1], atol=1e-12)
+    @test isapprox(e1[15], e3[1], atol=1e-12)
 end
 #run()
