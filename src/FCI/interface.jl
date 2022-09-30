@@ -60,6 +60,10 @@ function Base.print(p::FCIAnsatz)
     @printf(" FCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Dimension: %-9i\n",p.no,p.na,p.nb,p.dim)
 end
 
+function ActiveSpaceSolvers.compute_s2(sol::Solution)
+    return compute_S2_expval(sol.vectors, sol.ansatz)
+end
+
 
 """
     LinearMap(ints, prb::FCIAnsatz)

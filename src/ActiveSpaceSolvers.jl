@@ -32,6 +32,7 @@ function compute_operator_cca_aaa end
 function compute_operator_cca_bbb end     
 function compute_operator_cca_aba end     
 function compute_operator_cca_abb end     
+function compute_s2 end
 # analysis
 function svd_state end     
 # methods for getting info from Ansatze
@@ -67,6 +68,7 @@ export n_elec
 export n_elec_a
 export n_elec_b
 export dim
+export compute_s2 
 
 # include sub-modules and import/export Ansatz sub-types
 include("FCI/FCI.jl");
