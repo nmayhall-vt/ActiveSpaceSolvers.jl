@@ -1077,7 +1077,7 @@ function build_S2_matrix(P::FCIAnsatz)
         for Ka in 1:ket_a.max
             K = Ka + (Kb-1) * ket_a.max
 
-	    # Sz.Sz
+            # Sz.Sz
 
             for ai in ket_a.config
                 for aj in ket_a.config
@@ -1103,21 +1103,21 @@ function build_S2_matrix(P::FCIAnsatz)
                 end
             end
 
-	    # Sp.Sm
+            # Sp.Sm
             for ai in ket_a.config
                 if ai in ket_b.config
-		    temp = 10
-		else
+                    temp = 10
+                else
                     S2[K,K] += 0.75
                 end
             end
 
 
-	    # Sm.Sp
+            # Sm.Sp
             for bi in ket_b.config
                 if bi in ket_a.config
-		    temp = 10
-		else
+                    temp = 10
+                else
                     S2[K,K] += 0.75
                 end
             end
@@ -1126,41 +1126,41 @@ function build_S2_matrix(P::FCIAnsatz)
             ket_a2 = DeterminantString(P.no, P.na)
             ket_b2 = DeterminantString(P.no, P.nb)
 
-	    for ai in ket_a.config
-	        for bj in ket_b.config
-	            if ai ∉ ket_b.config
-	                if bj ∉ ket_a.config
+            for ai in ket_a.config
+                for bj in ket_b.config
+                    if ai ∉ ket_b.config
+                        if bj ∉ ket_a.config
 
-	        	    ket_a2 = deepcopy(ket_a)
-	        	    ket_b2 = deepcopy(ket_b)
+                            ket_a2 = deepcopy(ket_a)
+                            ket_b2 = deepcopy(ket_b)
 
                             apply_annihilation!(ket_a2,ai)
-	        	    ket_a2.sign != 0 || continue
+                            ket_a2.sign != 0 || continue
 
                             apply_creation!(ket_b2,ai)
-	        	    ket_b2.sign != 0 || continue
+                            ket_b2.sign != 0 || continue
 
                             apply_creation!(ket_a2,bj)
-	        	    ket_a2.sign != 0 || continue
+                            ket_a2.sign != 0 || continue
 
                             apply_annihilation!(ket_b2,bj)
-	        	    ket_b2.sign != 0 || continue
+                            ket_b2.sign != 0 || continue
 
-	        	    sign_a = ket_a2.sign
-	        	    sign_b = ket_b2.sign
+                            sign_a = ket_a2.sign
+                            sign_b = ket_b2.sign
 
                             La = calc_linear_index(ket_a2)
                             Lb = calc_linear_index(ket_b2)
 
                             L = La + (Lb-1) * ket_a.max
-			    #print("Init ",ket_a.config,"    ",ket_b.config,"\n")
-			    #print("Final",ket_a2.config,"    ",ket_b2.config,"\n")
-    	        	    #print(K,"  ",L,"\n")
+                            #print("Init ",ket_a.config,"    ",ket_b.config,"\n")
+                            #print("Final",ket_a2.config,"    ",ket_b2.config,"\n")
+                            #print(K,"  ",L,"\n")
                             S2[K,L] += 1 * sign_a * sign_b
-	        	end
-	            end
-	        end
-	    end
+                        end
+                    end
+                end
+            end
 
 
             incr!(ket_a)

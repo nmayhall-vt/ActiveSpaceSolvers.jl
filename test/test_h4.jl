@@ -22,8 +22,8 @@ using NPZ
     #k = rand(8,8);
     #U = exp(k-k')
     #ints = orbital_rotation(ints,U)
-    n_elec_a = 2
-    n_elec_b = 2
+    n_elec_a = 3
+    n_elec_b = 3
 
     norb = n_orb(ints)
     ansatz = FCIAnsatz(norb, n_elec_a, n_elec_b)
@@ -47,7 +47,7 @@ using NPZ
     display(e)
     #@test all(isapprox.(diag(e), ref, atol=1e-10))
 
-    solver = SolverSettings(nroots=10, package="arpack")
+    solver = SolverSettings(nroots=20, package="arpack")
     println(solver)
     solution = solve(ints, ansatz, solver)
     display(solution)
@@ -63,9 +63,30 @@ using NPZ
     @test round(s2[1]) == 0
     @test round(s2[2]) == 2
     @test round(s2[3]) == 0
-    @test round(s2[4]) == 2
+    @test round(s2[4]) == 0
+    @test round(s2[5]) == 2
     
+    
+    v1 = solution.vectors[:,1:15]
+    v2, ansatz2 = apply_sminus(v1, solution.ansatz)
+    v3, ansatz3 = apply_sminus(v2, ansatz2)
 
+    Hmap2 = LinearMap(ints, ansatz2)
+    Hmap3 = LinearMap(ints, ansatz3)
+    println(" new e")
+    e1 = diag(Matrix(v1'*(Hmap*v1)))
+    e2 = diag(Matrix(v2'*(Hmap2*v2)))
+    e3 = diag(Matrix(v3'*(Hmap3*v3)))
+
+    display(e1)
+    println()
+    display(e2)
+    println()
+    display(e3)
+    println()
+    @test isapprox(e1[2], e2[1], atol=1e-12)
+    @test isapprox(e1[15], e3[1], atol=1e-12)
+    #s2 = compute_s2(solution)
 
 end
 #run()
