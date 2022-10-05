@@ -52,7 +52,14 @@ using NPZ
     @time solution = solve(ints, ansatz, solver)
     display(solution)
 
+    S2matvec = 
+
     S2 = build_S2_matrix(solution.ansatz)
+    s2a = solution.vectors' * S2 * solution.vectors
+    s2b = solution.vectors' * apply_S2_matrix(solution.ansatz, solution.vectors)
+   
+    @test isapprox(norm(s2a-s2b), 0, atol=1e-12)
+
     s2a = diag(solution.vectors' * S2 * solution.vectors)
     s2 = compute_s2(solution)
 

@@ -17,6 +17,7 @@ include("type_SolverSettings.jl");
 function solve end     
 function build_H_matrix end     
 function build_S2_matrix end     
+function apply_S2_matrix end     
 function compute_1rdm end     
 function compute_1rdm_2rdm end    
 # operator functions
@@ -49,6 +50,7 @@ export SolverSettings
 export LinearMap 
 export build_H_matrix 
 export build_S2_matrix 
+export apply_S2_matrix 
 export solve 
 export compute_1rdm
 export compute_1rdm_2rdm

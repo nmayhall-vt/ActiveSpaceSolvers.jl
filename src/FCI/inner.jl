@@ -1050,11 +1050,131 @@ end
 
 
 """
+    apply_S2_matrix(prb::FCIAnsatz, v::AbstractArray{T}) where {T}
+- `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
+"""
+function apply_S2_matrix(P::FCIAnsatz, v::AbstractArray{T}) where {T}
+    #={{{=#
+    
+    P.dim == size(v,1) || throw(DimensionMismatch)
+
+    S2v = zeros(size(v)...)
+
+
+    #   Create ci_strings
+    ket_a = DeterminantString(P.no, P.na)
+    ket_b = DeterminantString(P.no, P.nb)
+    bra_a = DeterminantString(P.no, P.na)
+    bra_b = DeterminantString(P.no, P.nb)
+
+
+    #   lookup the ket space
+    ket_a_lookup = fill_ca_lookup(ket_a)
+    ket_b_lookup = fill_ca_lookup(ket_b)
+
+    reset!(ket_b)
+    for Kb in 1:ket_b.max
+
+        reset!(ket_a)
+        for Ka in 1:ket_a.max
+            K = Ka + (Kb-1) * ket_a.max
+
+            # Sz.Sz
+
+            for ai in ket_a.config
+                for aj in ket_a.config
+                    if ai != aj
+                        S2v[K,:] .+= 0.25 .* v[K,:]
+                    end
+                end
+            end
+
+            for bi in ket_b.config
+                for bj in ket_b.config
+                    if bi != bj
+                        S2v[K,:] .+= 0.25 .* v[K,:]
+                    end
+                end
+            end
+
+            for ai in ket_a.config
+                for bj in ket_b.config
+                    if ai != bj
+                        S2v[K,:] .-= 0.50 .* v[K,:]
+                    end
+                end
+            end
+
+            # Sp.Sm
+            for ai in ket_a.config
+                if ai in ket_b.config
+                else
+                    S2v[K,:] .+= 0.75 .* v[K,:]
+                end
+            end
+
+
+            # Sm.Sp
+            for bi in ket_b.config
+                if bi in ket_a.config
+                else
+                    S2v[K,:] .+= 0.75 .* v[K,:]
+                end
+            end
+
+
+            ket_a2 = DeterminantString(P.no, P.na)
+            ket_b2 = DeterminantString(P.no, P.nb)
+
+            for ai in ket_a.config
+                for bj in ket_b.config
+                    if ai ∉ ket_b.config
+                        if bj ∉ ket_a.config
+
+                            ket_a2 = deepcopy(ket_a)
+                            ket_b2 = deepcopy(ket_b)
+
+                            apply_annihilation!(ket_a2,ai)
+                            ket_a2.sign != 0 || continue
+
+                            apply_creation!(ket_b2,ai)
+                            ket_b2.sign != 0 || continue
+
+                            apply_creation!(ket_a2,bj)
+                            ket_a2.sign != 0 || continue
+
+                            apply_annihilation!(ket_b2,bj)
+                            ket_b2.sign != 0 || continue
+
+                            sign_a = ket_a2.sign
+                            sign_b = ket_b2.sign
+
+                            La = calc_linear_index(ket_a2)
+                            Lb = calc_linear_index(ket_b2)
+
+                            L = La + (Lb-1) * ket_a.max
+                            S2v[K,:] .+= sign_a .* sign_b .* v[L,:]
+                        end
+                    end
+                end
+            end
+
+
+            incr!(ket_a)
+
+        end
+        incr!(ket_b)
+    end
+    return S2v
+end
+#=}}}=#
+
+
+"""
     build_s2(prb::FCIAnsatz)
 - `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
 """
 function build_S2_matrix(P::FCIAnsatz)
-
     #={{{=#
     S2 = zeros(P.dim, P.dim)
 

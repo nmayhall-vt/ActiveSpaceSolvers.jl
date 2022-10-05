@@ -338,6 +338,18 @@ end
 
 Build the S2 matrix in the Slater Determinant Basis  specified by `P`
 """
+function ActiveSpaceSolvers.apply_S2_matrix(P::FCIAnsatz, v::AbstractArray{T}) where T
+#={{{=#
+    return apply_S2_matrix(P,v)
+end
+#=}}}=#
+
+
+"""
+    build_S2_matrix(P::FCIAnsatz)
+
+Build the S2 matrix in the Slater Determinant Basis  specified by `P`
+"""
 function ActiveSpaceSolvers.build_S2_matrix(P::FCIAnsatz) where T
 #={{{=#
     return build_S2_matrix(P)
