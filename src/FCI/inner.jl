@@ -917,11 +917,264 @@ end
 
 
 """
+    compute_S2_expval(prb::FCIAnsatz)
+- `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
+"""
+function compute_S2_expval(v::Matrix, P::FCIAnsatz)
+
+    #={{{=#
+    nr = size(v,2)
+    s2 = zeros(nr)
+
+
+    #   Create ci_strings
+    ket_a = DeterminantString(P.no, P.na)
+    ket_b = DeterminantString(P.no, P.nb)
+    bra_a = DeterminantString(P.no, P.na)
+    bra_b = DeterminantString(P.no, P.nb)
+
+    ind(Ka, Kb) = Ka + Kb * ket_a.max 
+
+    #   lookup the ket space
+    ket_a_lookup = fill_ca_lookup(ket_a)
+    ket_b_lookup = fill_ca_lookup(ket_b)
+
+    reset!(ket_b)
+    for Kb in 1:ket_b.max
+
+        reset!(ket_a)
+        for Ka in 1:ket_a.max
+            K = Ka + (Kb-1) * ket_a.max
+
+            # Sz.Sz
+
+            for ai in ket_a.config
+                for aj in ket_a.config
+                    if ai != aj
+                        for r in 1:nr
+                            s2[r] += .25 * v[K,r]*v[K,r] 
+                        end
+                    end
+                end
+            end
+
+            for bi in ket_b.config
+                for bj in ket_b.config
+                    if bi != bj
+                        for r in 1:nr
+                            s2[r] += .25 * v[K,r]*v[K,r] 
+                        end
+                    end
+                end
+            end
+
+            for ai in ket_a.config
+                for bj in ket_b.config
+                    if ai != bj
+                        for r in 1:nr
+                            s2[r] -= .5 * v[K,r]*v[K,r] 
+                        end
+                    end
+                end
+            end
+
+            # Sp.Sm
+            for ai in ket_a.config
+                if ai in ket_b.config
+                else
+                    for r in 1:nr
+                        s2[r] += .75 * v[K,r]*v[K,r] 
+                    end
+                end
+            end
+
+
+            # Sm.Sp
+            for bi in ket_b.config
+                if bi in ket_a.config
+                else
+                    for r in 1:nr
+                        s2[r] += .75 * v[K,r]*v[K,r] 
+                    end
+                end
+            end
+
+
+            ket_a2 = DeterminantString(P.no, P.na)
+            ket_b2 = DeterminantString(P.no, P.nb)
+
+            for ai ∈ ket_a.config
+                for bj ∈ ket_b.config
+                    if ai ∉ ket_b.config
+                        if bj ∉ ket_a.config
+
+                            ket_a2 = deepcopy(ket_a)
+                            ket_b2 = deepcopy(ket_b)
+
+                            apply_annihilation!(ket_a2,ai)
+                            ket_a2.sign != 0 || continue
+
+                            apply_creation!(ket_b2,ai)
+                            ket_b2.sign != 0 || continue
+
+                            apply_creation!(ket_a2,bj)
+                            ket_a2.sign != 0 || continue
+
+                            apply_annihilation!(ket_b2,bj)
+                            ket_b2.sign != 0 || continue
+
+                            sign_a = ket_a2.sign
+                            sign_b = ket_b2.sign
+
+                            La = calc_linear_index(ket_a2)
+                            Lb = calc_linear_index(ket_b2)
+
+                            L = La + (Lb-1) * ket_a.max
+                            for r in 1:nr
+                                s2[r] += sign_a * sign_b * v[K,r] * v[L,r]
+                            end
+                        end
+                    end
+                end
+            end
+
+
+            incr!(ket_a)
+
+        end
+        incr!(ket_b)
+    end
+    return s2
+end
+#=}}}=#
+
+
+"""
+    apply_S2_matrix(prb::FCIAnsatz, v::AbstractArray{T}) where {T}
+- `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
+"""
+function apply_S2_matrix(P::FCIAnsatz, v::AbstractArray{T}) where {T}
+    #={{{=#
+    
+    P.dim == size(v,1) || throw(DimensionMismatch)
+
+    S2v = zeros(size(v)...)
+
+
+    #   Create ci_strings
+    ket_a = DeterminantString(P.no, P.na)
+    ket_b = DeterminantString(P.no, P.nb)
+    bra_a = DeterminantString(P.no, P.na)
+    bra_b = DeterminantString(P.no, P.nb)
+
+
+    #   lookup the ket space
+    ket_a_lookup = fill_ca_lookup(ket_a)
+    ket_b_lookup = fill_ca_lookup(ket_b)
+
+    reset!(ket_b)
+    for Kb in 1:ket_b.max
+
+        reset!(ket_a)
+        for Ka in 1:ket_a.max
+            K = Ka + (Kb-1) * ket_a.max
+
+            # Sz.Sz
+
+            for ai in ket_a.config
+                for aj in ket_a.config
+                    if ai != aj
+                        S2v[K,:] .+= 0.25 .* v[K,:]
+                    end
+                end
+            end
+
+            for bi in ket_b.config
+                for bj in ket_b.config
+                    if bi != bj
+                        S2v[K,:] .+= 0.25 .* v[K,:]
+                    end
+                end
+            end
+
+            for ai in ket_a.config
+                for bj in ket_b.config
+                    if ai != bj
+                        S2v[K,:] .-= 0.50 .* v[K,:]
+                    end
+                end
+            end
+
+            # Sp.Sm
+            for ai in ket_a.config
+                if ai in ket_b.config
+                else
+                    S2v[K,:] .+= 0.75 .* v[K,:]
+                end
+            end
+
+
+            # Sm.Sp
+            for bi in ket_b.config
+                if bi in ket_a.config
+                else
+                    S2v[K,:] .+= 0.75 .* v[K,:]
+                end
+            end
+
+
+            ket_a2 = DeterminantString(P.no, P.na)
+            ket_b2 = DeterminantString(P.no, P.nb)
+
+            for ai in ket_a.config
+                for bj in ket_b.config
+                    if ai ∉ ket_b.config
+                        if bj ∉ ket_a.config
+
+                            ket_a2 = deepcopy(ket_a)
+                            ket_b2 = deepcopy(ket_b)
+
+                            apply_annihilation!(ket_a2,ai)
+                            ket_a2.sign != 0 || continue
+
+                            apply_creation!(ket_b2,ai)
+                            ket_b2.sign != 0 || continue
+
+                            apply_creation!(ket_a2,bj)
+                            ket_a2.sign != 0 || continue
+
+                            apply_annihilation!(ket_b2,bj)
+                            ket_b2.sign != 0 || continue
+
+                            sign_a = ket_a2.sign
+                            sign_b = ket_b2.sign
+
+                            La = calc_linear_index(ket_a2)
+                            Lb = calc_linear_index(ket_b2)
+
+                            L = La + (Lb-1) * ket_a.max
+                            S2v[K,:] .+= sign_a .* sign_b .* v[L,:]
+                        end
+                    end
+                end
+            end
+
+
+            incr!(ket_a)
+
+        end
+        incr!(ket_b)
+    end
+    return S2v
+end
+#=}}}=#
+
+
+"""
     build_s2(prb::FCIAnsatz)
 - `prb`: FCIAnsatz just defines the current CI ansatz (i.e., fock sector)
 """
 function build_S2_matrix(P::FCIAnsatz)
-
     #={{{=#
     S2 = zeros(P.dim, P.dim)
 
@@ -944,7 +1197,7 @@ function build_S2_matrix(P::FCIAnsatz)
         for Ka in 1:ket_a.max
             K = Ka + (Kb-1) * ket_a.max
 
-	    # Sz.Sz
+            # Sz.Sz
 
             for ai in ket_a.config
                 for aj in ket_a.config
@@ -970,21 +1223,21 @@ function build_S2_matrix(P::FCIAnsatz)
                 end
             end
 
-	    # Sp.Sm
+            # Sp.Sm
             for ai in ket_a.config
                 if ai in ket_b.config
-		    temp = 10
-		else
+                    temp = 10
+                else
                     S2[K,K] += 0.75
                 end
             end
 
 
-	    # Sm.Sp
+            # Sm.Sp
             for bi in ket_b.config
                 if bi in ket_a.config
-		    temp = 10
-		else
+                    temp = 10
+                else
                     S2[K,K] += 0.75
                 end
             end
@@ -993,41 +1246,41 @@ function build_S2_matrix(P::FCIAnsatz)
             ket_a2 = DeterminantString(P.no, P.na)
             ket_b2 = DeterminantString(P.no, P.nb)
 
-	    for ai in ket_a.config
-	        for bj in ket_b.config
-	            if ai ∉ ket_b.config
-	                if bj ∉ ket_a.config
+            for ai in ket_a.config
+                for bj in ket_b.config
+                    if ai ∉ ket_b.config
+                        if bj ∉ ket_a.config
 
-	        	    ket_a2 = deepcopy(ket_a)
-	        	    ket_b2 = deepcopy(ket_b)
+                            ket_a2 = deepcopy(ket_a)
+                            ket_b2 = deepcopy(ket_b)
 
                             apply_annihilation!(ket_a2,ai)
-	        	    ket_a2.sign != 0 || continue
+                            ket_a2.sign != 0 || continue
 
                             apply_creation!(ket_b2,ai)
-	        	    ket_b2.sign != 0 || continue
+                            ket_b2.sign != 0 || continue
 
                             apply_creation!(ket_a2,bj)
-	        	    ket_a2.sign != 0 || continue
+                            ket_a2.sign != 0 || continue
 
                             apply_annihilation!(ket_b2,bj)
-	        	    ket_b2.sign != 0 || continue
+                            ket_b2.sign != 0 || continue
 
-	        	    sign_a = ket_a2.sign
-	        	    sign_b = ket_b2.sign
+                            sign_a = ket_a2.sign
+                            sign_b = ket_b2.sign
 
                             La = calc_linear_index(ket_a2)
                             Lb = calc_linear_index(ket_b2)
 
                             L = La + (Lb-1) * ket_a.max
-			    #print("Init ",ket_a.config,"    ",ket_b.config,"\n")
-			    #print("Final",ket_a2.config,"    ",ket_b2.config,"\n")
-    	        	    #print(K,"  ",L,"\n")
+                            #print("Init ",ket_a.config,"    ",ket_b.config,"\n")
+                            #print("Final",ket_a2.config,"    ",ket_b2.config,"\n")
+                            #print(K,"  ",L,"\n")
                             S2[K,L] += 1 * sign_a * sign_b
-	        	end
-	            end
-	        end
-	    end
+                        end
+                    end
+                end
+            end
 
 
             incr!(ket_a)
@@ -1208,6 +1461,9 @@ end
 
 
 """
+    compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) where T
+
+Compute the 1 and 2 rdm's, in pyscf order
 """
 function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) where T
     #={{{=#
@@ -1288,9 +1544,9 @@ function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) whe
                         L = calc_linear_index(bra)
 
                         if bra.sign == 1
-                            @views rdm2aa[p,q,r,s] += dot(vl[L,:], vr[Ka,:])
+                            @views rdm2aa[p,s,q,r] += dot(vl[L,:], vr[Ka,:])
                         elseif bra.sign == -1
-                            @views rdm2aa[p,q,r,s] -= dot(vl[L,:], vr[Ka,:])
+                            @views rdm2aa[p,s,q,r] -= dot(vl[L,:], vr[Ka,:])
                         else
                             error(" Shouldn't be here")
                         end
@@ -1354,9 +1610,9 @@ function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) whe
                         L = calc_linear_index(bra)
 
                         if bra.sign == 1
-                            @views rdm2bb[p,q,r,s] += dot(vl[:,L], vr[:,Kb])
+                            @views rdm2bb[p,s,q,r] += dot(vl[:,L], vr[:,Kb])
                         elseif bra.sign == -1
-                            @views rdm2bb[p,q,r,s] -= dot(vl[:,L], vr[:,Kb])
+                            @views rdm2bb[p,s,q,r] -= dot(vl[:,L], vr[:,Kb])
                         else
                             error(" Shouldn't be here")
                         end
@@ -1381,14 +1637,13 @@ function compute_rdm1_rdm2(P::FCIAnsatz, vec_l::Vector{T}, vec_r::Vector{T}) whe
                    
                     La != 0 || continue
 
-                    for q in get_unoccupied(ket_b) 
-                        for r in ket_b.config
-                    
+                    for q in 1:ket_b.no 
+                        for r in 1:ket_b.no 
                             sign_b, Lb = ket_b_lookup[Kb][q+(r-1)*ket_b.no]
                             Lb != 0 || continue
                   
                             sign = sign_a*sign_b
-                            rdm2ab[p,q,r,s] += vl[La,Lb] * vr[Ka,Kb] * sign
+                            rdm2ab[p,s,q,r] += vl[La,Lb] * vr[Ka,Kb] * sign
                         end
                     end
                 end

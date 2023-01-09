@@ -1,16 +1,11 @@
 module ActiveSpaceSolvers
+using QCBase
 using LinearMaps
 using InCoreIntegrals 
 using Printf
+using BlockDavidson
 using InteractiveUtils
 
-# solve is exported by several packages.
-# check if its defined, and if so, extend it
-if @isdefined(solve)
-    println(" Solve already defined: extend it. ", @which solve)
-    a = @which solve
-    eval(Meta.parse("import $a.solve"))
-end    
 
 # Interface Types
 abstract type Ansatz end        
@@ -19,9 +14,10 @@ include("type_SolverSettings.jl");
 
 
 # Interface Methods: extend each for a new `Ansatz`
+function solve end     
 function build_H_matrix end     
 function build_S2_matrix end     
-function solve end     
+function apply_S2_matrix end     
 function compute_1rdm end     
 function compute_1rdm_2rdm end    
 # operator functions
@@ -37,6 +33,9 @@ function compute_operator_cca_aaa end
 function compute_operator_cca_bbb end     
 function compute_operator_cca_aba end     
 function compute_operator_cca_abb end     
+function compute_s2 end
+function apply_sminus end
+function apply_splus end
 # analysis
 function svd_state end     
 # methods for getting info from Ansatze
@@ -51,6 +50,7 @@ export SolverSettings
 export LinearMap 
 export build_H_matrix 
 export build_S2_matrix 
+export apply_S2_matrix 
 export solve 
 export compute_1rdm
 export compute_1rdm_2rdm
@@ -67,12 +67,14 @@ export compute_operator_cca_bbb
 export compute_operator_cca_aba      
 export compute_operator_cca_abb      
 export svd_state
+export apply_sminus
+export apply_splus
 
-export n_orbs
 export n_elec
 export n_elec_a
 export n_elec_b
 export dim
+export compute_s2 
 
 # include sub-modules and import/export Ansatz sub-types
 include("FCI/FCI.jl");
@@ -81,13 +83,13 @@ export FCIAnsatz
 
 
 # some methods
-n_orbs(a::Ansatz) = a.no 
 n_elec(a::Ansatz) = a.na + a.nb 
 n_elec_a(a::Ansatz) = a.na     
 n_elec_b(a::Ansatz) = a.nb     
 dim(a::Ansatz) = a.dim 
 
-n_orbs(a::Solution) = n_orbs(a.ansatz)
+QCBase.n_orb(a::Ansatz) = a.no 
+QCBase.n_orb(a::Solution) = n_orb(a.ansatz)
 n_elec(a::Solution) = n_elec(a.ansatz)
 n_elec_a(a::Solution) = n_elec_a(a.ansatz)
 n_elec_b(a::Solution) = n_elec_b(a.ansatz)
