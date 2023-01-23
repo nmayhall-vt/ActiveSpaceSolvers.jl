@@ -81,6 +81,10 @@ include("FCI/FCI.jl");
 import .FCI: FCIAnsatz
 export FCIAnsatz
 
+include("RASCI/RASCI.jl");
+import .RASCI: RASCIAnsatz
+export RASCIAnsatz
+
 
 # some methods
 n_elec(a::Ansatz) = a.na + a.nb 
