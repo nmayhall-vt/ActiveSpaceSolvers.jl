@@ -6,7 +6,7 @@ using JLD2
 using BenchmarkTools
 #using InteractiveUtils
 using LinearMaps
-
+using TensorOperations
 #using FermiCG
 using QCBase
 using InCoreIntegrals 
@@ -252,11 +252,14 @@ function compute_sigma_one(b_configs, b_lookup, ci_vector, ints::InCoreInts, pro
             end
         end
         
-        for a in 1:prob.dima
-            for b in 1:prob.dimb
-                @inbounds sigma_one[a, I_idx] += F[b]*ci_vector[a,b]
-            end
-        end
+        #for a in 1:prob.dima
+        #    for b in 1:prob.dimb
+        #        @inbounds sigma_one[a, I_idx] += F[b]*ci_vector[a,b]
+        #    end
+        #end
+        
+        scr = ci_vector*F
+        sigma_one[:, I_idx] .+= scr
     end#=}}}=#
     return sigma_one
 end
@@ -325,12 +328,20 @@ function compute_sigma_two(a_configs, a_lookup, ci_vector, ints::InCoreInts, pro
             end
         end
     
-        for a in 1:prob.dima
-            for b in 1:prob.dimb
-                @inbounds sigma_two[I_idx,b] += F[a]*ci_vector[a,b]
-            end
-        end
+        #for a in 1:prob.dima
+        #    for b in 1:prob.dimb
+        #        @inbounds sigma_two[I_idx,b] += F[a]*ci_vector[a,b]
+        #    end
+        #end
 
+        #scr = zeros(prob.dimb)
+        #@tensor begin
+        #    scr[b] = F[a]*ci_vector[a,b]
+        #end
+        #sigma_two[I_idx,:] .+= scr
+
+        scr = F'*ci_vector
+        sigma_two[I_idx,:] .+= scr'
     end#=}}}=#
     return sigma_two
 end
@@ -340,8 +351,9 @@ end
 """
 function compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, ci_vector, ints::InCoreInts, prob::RASCIAnsatz)
     sigma_three = zeros(prob.dima, prob.dimb)#={{{=#
+    #ci_vector = reshape(ci_vector, prob.dimb, prob.dima)
     ci_vector = reshape(ci_vector, prob.dima, prob.dimb)
-                
+    
     F = zeros(prob.dimb)
     hkl = zeros(prob.no, prob.no)
     
@@ -360,12 +372,13 @@ function compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, ci_vector
                     push!(sign_I, sign(Iidx))
                 end
             end
-            
+
             #Gather
             # .* is vectorized multiplication
+            #Ckl = ci_vector[:, L]
+            #Ckl_prime = Ckl .* sign_I'
             Ckl = ci_vector[L, :]
             Ckl_prime = sign_I .* Ckl
-                
             #@views hkl = ints.h2[:,:,k,l]
 
             hkl .= ints.h2[:,:,k,l]
@@ -380,12 +393,15 @@ function compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, ci_vector
                 _update_F!(hkl, F, b_lookup, Ib[2], prob)
                 
                 #VI = Ckl*F.*sign_I
+                #VI = Ckl_prime'*F
                 VI = Ckl_prime*F
                 
+                sigma_three[R, Ib[2]] .+= VI
+                
                 #Scatter
-                for Li in 1:length(VI)
-                    sigma_three[R[Li], Ib[2]] += VI[Li]
-                end
+                #for Li in 1:length(VI)
+                #    sigma_three[R[Li], Ib[2]] += VI[Li]
+                #end
             end
         end
     end

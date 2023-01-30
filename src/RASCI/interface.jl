@@ -7,6 +7,8 @@ using BlockDavidson
 using StaticArrays
 using LinearAlgebra
 using Printf
+using TimerOutputs
+using StatProfilerHTML
 
 """
 Type containing all the metadata needed to define a RASCI problem 
@@ -88,17 +90,34 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `RASCIAnsatz` object
 """
 function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
-    a_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[1]
-    b_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[2]
+    @printf(" %-50s", "Compute alpha configs: ")
+    flush(stdout)
+    @time a_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[1]
+    @printf(" %-50s", "Compute beta configs: ")
+    flush(stdout)
+    @time b_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[2]
     
     #fill single excitation lookup tables
-    a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, a_configs, prb.dima)
-    b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, b_configs, prb.dimb)
+    @printf(" %-50s", "Fill single excitation lookup for alpha: ")
+    flush(stdout)
+    @time a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, a_configs, prb.dima)
+    @printf(" %-50s", "Fill single excitation lookup for beta: ")
+    flush(stdout)
+    @time b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, b_configs, prb.dimb)
     
     function mymatvec(v)
-        sigma1 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_one(b_configs, b_lookup, v, ints, prb))
-        sigma2 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb))
-        sigma3 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb))
+        @printf(" %-50s", "Compute sigma 1: ")
+        flush(stdout)
+        @time sigma1 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_one(b_configs, b_lookup, v, ints, prb))
+        @printf(" %-50s", "Compute sigma 2: ")
+        flush(stdout)
+        @time sigma2 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb))
+        #@profilehtml sigma2 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb))
+        @printf(" %-50s", "Compute sigma 3: ")
+        flush(stdout)
+        @time sigma3 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb))
+        @profilehtml sigma3 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb))
+        error("here")
         sigma = sigma1 + sigma2 + sigma3
         return sigma
     end
