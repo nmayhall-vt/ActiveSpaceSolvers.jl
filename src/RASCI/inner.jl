@@ -396,9 +396,10 @@ function compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, ci_vector
                 #VI = Ckl_prime'*F
                 VI = Ckl_prime*F
                 
-                sigma_three[R, Ib[2]] .+= VI
+                #sigma_three[R, Ib[2]] .+= VI
                 
                 #Scatter
+                _scatter!(sigma_three, R, VI, Ib[2])
                 #for Li in 1:length(VI)
                 #    sigma_three[R[Li], Ib[2]] += VI[Li]
                 #end
@@ -408,6 +409,13 @@ function compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, ci_vector
 #    @save "src/data/h8_sigma3_old.jld2" sigma_three
     return sigma_three#=}}}=#
 end
+
+function _scatter!(sigma_three::Array{Float64, 2}, R::Vector{Int32}, VI::Vector{Float64}, Ib::Int64)
+    for Li in 1:length(VI)
+        sigma_three[R[Li], Ib] += VI[Li]
+    end
+end
+
 
 function _update_F!(hkl, F, b_lookup::Array{Int,3}, Ib, prob)
     for j in 1:prob.no#={{{=#
