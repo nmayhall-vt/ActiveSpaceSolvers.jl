@@ -9,6 +9,7 @@ include("interface.jl");
 include("type_RASCI_OlsenGraph.jl");
 include("TDMs.jl");
 include("inner.jl");
+include("single_index_lookup.jl");
 
 # import stuff so we can extend and export
 import LinearMaps: LinearMap

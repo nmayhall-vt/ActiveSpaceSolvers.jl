@@ -191,15 +191,20 @@ function get_gkl(ints::InCoreInts, prob::RASCIAnsatz)
 end
 
 """
-    compute_sigma_one(b_configs, b_lookup, ci_vector, ints::InCoreInts, prob::RASCIAnsatz)
+    compute_sigma_one(b_configs, b_lookup, v, ints::InCoreInts, prob::RASCIAnsatz)
 """
-function compute_sigma_one(b_configs, b_lookup, ci_vector, ints::InCoreInts, prob::RASCIAnsatz)
+function compute_sigma_one(b_configs::Dict{Vector{Int32}, Int64}, b_lookup::Array{Int64, 3}, v, ints::InCoreInts, prob::RASCIAnsatz)
     ## bb σ1(Iα, Iβ){{{
-    sigma_one = zeros(prob.dima, prob.dimb)
-    ci_vector = reshape(ci_vector, prob.dima, prob.dimb)
+    T = eltype(v[1])
+    n_roots::Int = size(v,3)
+    sigma_one = zeros(prob.dima, prob.dimb, n_roots)
+    #v = reshape(v, prob.dima, prob.dimb)
     
-    F = zeros(prob.dimb)
+    F = zeros(T, prob.dimb)
     gkl = get_gkl(ints, prob) 
+    
+    sigma_one = permutedims(sigma_one,[1,3,2])
+    v = permutedims(v,[1,3,2])
     
     for I_b in b_configs
         I_idx = I_b[2]
@@ -254,26 +259,36 @@ function compute_sigma_one(b_configs, b_lookup, ci_vector, ints::InCoreInts, pro
         
         #for a in 1:prob.dima
         #    for b in 1:prob.dimb
-        #        @inbounds sigma_one[a, I_idx] += F[b]*ci_vector[a,b]
+        #        @inbounds sigma_one[a, I_idx] += F[b]*v[a,b]
         #    end
         #end
         
-        scr = ci_vector*F
-        sigma_one[:, I_idx] .+= scr
+        #scr = v*F
+        #sigma_one[:, I_idx] .+= scr
+        
+        ActiveSpaceSolvers.FCI._ss_sum!(sigma_one, v, F, I_idx)
     end#=}}}=#
+    
+    sigma_one = permutedims(sigma_one,[1,3,2])
+    v = permutedims(v,[1,3,2])
     return sigma_one
 end
 
+
 """
-    compute_sigma_two(a_configs, a_lookup, ci_vector, ints::InCoreInts, prob::RASCIAnsatz)
+    compute_sigma_two(a_configs, a_lookup, v, ints::InCoreInts, prob::RASCIAnsatz)
 """
-function compute_sigma_two(a_configs, a_lookup, ci_vector, ints::InCoreInts, prob::RASCIAnsatz)
+function compute_sigma_two(a_configs::Dict{Vector{Int32}, Int64}, a_lookup::Array{Int64,3}, v, ints::InCoreInts, prob::RASCIAnsatz)
     ## aa σ2(Iα, Iβ){{{
-    sigma_two = zeros(prob.dima, prob.dimb)
-    ci_vector = reshape(ci_vector, prob.dima, prob.dimb)
+    T = eltype(v[1])
+    n_roots::Int = size(v,3)
+    sigma_two = zeros(prob.dima, prob.dimb, n_roots)
     
     F = zeros(prob.dima)
     gkl = get_gkl(ints, prob) 
+    
+    sigma_two = permutedims(sigma_two,[2,3,1])
+    v = permutedims(v,[2,3,1])
     
     for I_a in a_configs
         I_idx = I_a[2]
@@ -330,109 +345,148 @@ function compute_sigma_two(a_configs, a_lookup, ci_vector, ints::InCoreInts, pro
     
         #for a in 1:prob.dima
         #    for b in 1:prob.dimb
-        #        @inbounds sigma_two[I_idx,b] += F[a]*ci_vector[a,b]
+        #        @inbounds sigma_two[I_idx,b] += F[a]*v[a,b]
         #    end
         #end
 
         #scr = zeros(prob.dimb)
         #@tensor begin
-        #    scr[b] = F[a]*ci_vector[a,b]
+        #    scr[b] = F[a]*v[a,b]
         #end
         #sigma_two[I_idx,:] .+= scr
 
-        scr = F'*ci_vector
-        sigma_two[I_idx,:] .+= scr'
+        #scr = F'*v
+        #sigma_two[I_idx,:] .+= scr'
+        
+        ActiveSpaceSolvers.FCI._ss_sum_Ia!(sigma_two, v, F, I_idx)
+    
     end#=}}}=#
+    
+    sigma_two = permutedims(sigma_two,[3,1,2])
+    v = permutedims(v,[3,1,2])
+    
     return sigma_two
 end
 
 """
-    compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, ci_vector, ints::InCoreInts, prob::RASCIAnsatz)
+    compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints::InCoreInts, prob::RASCIAnsatz)
 """
-function compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, ci_vector, ints::InCoreInts, prob::RASCIAnsatz)
-    sigma_three = zeros(prob.dima, prob.dimb)#={{{=#
-    #ci_vector = reshape(ci_vector, prob.dimb, prob.dima)
-    ci_vector = reshape(ci_vector, prob.dima, prob.dimb)
+function compute_sigma_three(a_configs::Dict{Vector{Int32}, Int64}, b_configs::Dict{Vector{Int32}, Int64}, a_lookup::Array{Int64, 3}, b_lookup::Array{Int64, 3}, v, ints::InCoreInts, prob::RASCIAnsatz)
+    #v = reshape(v, prob.dima, prob.dimb)
     
-    F = zeros(prob.dimb)
-    hkl = zeros(prob.no, prob.no)
+    T = eltype(v[1])
+    n_roots::Int = size(v,3)
+    sigma_three = zeros(Float64, prob.dima, prob.dimb,n_roots)
     
-    for k in 1:prob.no
-        for l in 1:prob.no
-            L = Vector{Int32}()
-            R = Vector{Int32}()
-            sign_I = Vector{Int32}()
-            # compute all k->l excitations of alpha ket
-            # config R -> config L with a k->l excitation
-            for I in a_configs
-                Iidx = a_lookup[k,l,I[2]]
-                if Iidx != 0
-                    push!(R,I[2])
-                    push!(L,abs(Iidx))
-                    push!(sign_I, sign(Iidx))
-                end
-            end
+    hkl = zeros(Float64, prob.no, prob.no)
+    FJb = zeros(T, prob.dimb)
+    Ckl = Array{T, 3} 
 
-            #Gather
-            # .* is vectorized multiplication
-            #Ckl = ci_vector[:, L]
-            #Ckl_prime = Ckl .* sign_I'
-            Ckl = ci_vector[L, :]
-            Ckl_prime = sign_I .* Ckl
-            #@views hkl = ints.h2[:,:,k,l]
-
-            hkl .= ints.h2[:,:,k,l]
-            
-            #look over beta configs
-            for Ib in b_configs
-
-                fill!(F,0.0)
-                #@code_warntype _update_F!(hkl, F, b_lookup, Ib, prob)
-                #error("here")
-                #@views hkl = ints.h2[:,:,k,l]
-                _update_F!(hkl, F, b_lookup, Ib[2], prob)
-                
-                #VI = Ckl*F.*sign_I
-                #VI = Ckl_prime'*F
-                VI = Ckl_prime*F
-                
-                #sigma_three[R, Ib[2]] .+= VI
-                
-                #Scatter
-                _scatter!(sigma_three, R, VI, Ib[2])
-                #for Li in 1:length(VI)
-                #    sigma_three[R[Li], Ib[2]] += VI[Li]
-                #end
+    #short loop to show dim of Ckl for various RASCI Ansantz
+    #Ckl_size = zeros(Int, prob.no, prob.no)
+    #for k in 1:prob.no,  l in 1:prob.no
+    #    count = 0
+    #    for I in a_configs
+    #        Iidx = a_lookup[k,l,I[2]]
+    #        if Iidx != 0
+    #            count += 1
+    #        end
+    #    Ckl_size[k, l] = count
+    #    end
+    #end
+    
+    for k in 1:prob.no,  l in 1:prob.no
+        L = Vector{Int}()
+        R = Vector{Int}()
+        sign_I = Vector{Int8}()
+        #
+        # compute all k->l excitations of alpha ket
+        # config R -> config L with a k->l excitation
+        for I in a_configs
+            Iidx = a_lookup[k,l,I[2]]
+            if Iidx != 0
+                push!(R,I[2])
+                push!(L,abs(Iidx))
+                push!(sign_I, sign(Iidx))
             end
         end
+
+        Ckl = zeros(T, length(L), prob.dimb, n_roots)
+        
+        #Gather
+        _gather!(Ckl, v, L, sign_I)
+        
+        hkl .= ints.h2[:,:,k,l]
+        VI = zeros(T, length(L), n_roots)
+
+        #look over beta configs
+        for Ib in b_configs
+
+            @inbounds fill!(FJb, T(0.0))
+            #@code_warntype _update_F!(hkl, F, b_lookup, Ib, prob)
+            _update_F!(hkl, FJb, b_lookup, Ib[2], prob)
+
+            #VI = Ckl*FJb
+            #@tensor begin
+            #    VI[I,s] = Ckl[I,J,s]*FJb[J]
+            #end
+            ActiveSpaceSolvers.FCI._mult!(Ckl, FJb, VI)
+
+            #Scatter
+            _scatter!(sigma_three, R, VI, Ib[2])
+        end
     end
-#    @save "src/data/h8_sigma3_old.jld2" sigma_three
-    return sigma_three#=}}}=#
+    return sigma_three
 end
 
-function _scatter!(sigma_three::Array{Float64, 2}, R::Vector{Int32}, VI::Vector{Float64}, Ib::Int64)
-    for Li in 1:length(VI)
-        sigma_three[R[Li], Ib] += VI[Li]
-    end
+function _gather!(Ckl::Array{T,3}, v, L::Vector{Int}, sign_I::Vector{Int8}) where {T}
+    nI = length(L)#={{{=#
+    n_roots = size(v)[3]
+    ket_max = size(v)[2]
+    @inbounds @simd for si in 1:n_roots
+        for Jb in 1:ket_max
+            for Li in 1:nI
+                Ckl[Li,Jb,si] = v[L[Li], Jb,si] * sign_I[Li]
+            end
+        end
+    end#=}}}=#
 end
 
+function _scatter!(sigma_three::Array{T, 3}, R::Vector{Int}, VI::Array{T, 2}, Ib::Int) where {T}
+    #sigma_three[R, Ib[2]] .+= VI{{{
+    n_roots = size(sigma_three)[3]
+    
+    #what nick uses
+    @inbounds @simd for si in 1:n_roots
+        for Li in 1:length(VI)
+            sigma_three[R[Li], Ib, si] += VI[Li,si]
+        end
+    end
+    
+    #Fastest for me
+    #@views a = sigma_three[:, Ib]
+    #for (Li,L) in enumerate(VI)
+    #    @inbounds a[R[Li]] += L
+    #end}}}
+end
+#end
 
-function _update_F!(hkl, F, b_lookup::Array{Int,3}, Ib, prob)
-    for j in 1:prob.no#={{{=#
+function _update_F!(hkl::Array{T,2}, FJb::Vector{T}, b_lookup::Array{Int,3}, Ib::Int, prob::RASCIAnsatz) where {T}
+    i::Int = 1#={{{=#
+    j::Int = 1
+    Jb::Int = 1
+    sign_ij::T = 1.0
+    for j in 1:prob.no
         #jkl_idx = j-1 + (k-1)*prob.no + (l-1)*prob.no*prob.no 
         for i in 1:prob.no
-
             #ijkl_idx = (i-1) + jkl_idx*prob.no + 1
-
             Jb = b_lookup[i,j,Ib]
             if Jb == 0
                 continue
             end
             sign_ij = sign(Jb)
-            J = abs(Jb)
-            @inbounds F[J] += sign_ij*hkl[i,j]
-            #@inbounds F[J] += sign_ij*ints.h2[ijkl_idx]
-            #F[J] += sign_ij*ints.h2[i,j,k,l]
+            Jb = abs(Jb)
+            @inbounds FJb[Jb] += sign_ij*hkl[i,j]
         end
     end#=}}}=#
 end
@@ -745,7 +799,7 @@ function apply_creation!(config, orb_index, graph::RASCI_OlsenGraph, must_obey::
             insert_here += 1
         end
     end
-    
+     
     sign = 1
     if insert_here % 2 != 1
         sign = -1
@@ -979,5 +1033,6 @@ end
 
     
         
+
 
 

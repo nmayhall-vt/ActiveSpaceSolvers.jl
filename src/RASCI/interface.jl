@@ -8,7 +8,6 @@ using StaticArrays
 using LinearAlgebra
 using Printf
 using TimerOutputs
-using StatProfilerHTML
 
 """
 Type containing all the metadata needed to define a RASCI problem 
@@ -60,15 +59,23 @@ Constructor
 - `ras1_min`: Minimum number of electrons in RAS1
 - `ras3_max`: Max number of electrons in RAS3
 """
-function RASCIAnsatz(no::Int, na::Int, nb::Int, fock::Any, ras1_min=1, ras3_max=2)
+function RASCIAnsatz(no::Int, na::Int, nb::Int, fock::Any, ras1_min=0, ras3_max=fock[3])
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
+    ras1_min <= fock[1] || throw(DimensionMismatch)
     ras3_max <= fock[3] || throw(DimensionMismatch)
+    sum(fock) == no || throw(DimensionMismatch)
     fock = convert(SVector{3,Int},collect(fock))
-    println(fock)
-    #adding extra line
-    dima, xalpha = ras_calc_ndets(no, na, fock, ras1_min, ras3_max)
-    dimb, xbeta = ras_calc_ndets(no, nb, fock, ras1_min, ras3_max)
+    if fock[1] == 0 && fock[3] == 0
+        #FCI problem
+        dima = calc_ndets(no, na)
+        dimb = calc_ndets(no, nb)
+        xalpha = ras_calc_ndets(no, na, fock, ras1_min, ras3_max)[2]
+        xbeta = ras_calc_ndets(no, nb, fock, ras1_min, ras3_max)[2]
+    else
+        dima, xalpha = ras_calc_ndets(no, na, fock, ras1_min, ras3_max)
+        dimb, xbeta = ras_calc_ndets(no, nb, fock, ras1_min, ras3_max)
+    end
     return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, fock, ras1_min, ras3_max, xalpha, xbeta, false, false, 1, "direct", 1)
 end
 
@@ -90,36 +97,38 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `RASCIAnsatz` object
 """
 function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
-    @printf(" %-50s", "Compute alpha configs: ")
-    flush(stdout)
-    @time a_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[1]
-    @printf(" %-50s", "Compute beta configs: ")
-    flush(stdout)
-    @time b_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[2]
+    a_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[1]
+    b_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[2]
     
     #fill single excitation lookup tables
-    @printf(" %-50s", "Fill single excitation lookup for alpha: ")
-    flush(stdout)
-    @time a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, a_configs, prb.dima)
-    @printf(" %-50s", "Fill single excitation lookup for beta: ")
-    flush(stdout)
-    @time b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, b_configs, prb.dimb)
-    
+    a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, a_configs, prb.dima)
+    b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, b_configs, prb.dimb)
+    #iters = 0
     function mymatvec(v)
-        @printf(" %-50s", "Compute sigma 1: ")
-        flush(stdout)
-        @time sigma1 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_one(b_configs, b_lookup, v, ints, prb))
-        @printf(" %-50s", "Compute sigma 2: ")
-        flush(stdout)
-        @time sigma2 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb))
-        #@profilehtml sigma2 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb))
-        @printf(" %-50s", "Compute sigma 3: ")
-        flush(stdout)
-        @time sigma3 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb))
-        @profilehtml sigma3 = vec(ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb))
-        error("here")
-        sigma = sigma1 + sigma2 + sigma3
-        return sigma
+        #iters += 1
+        #@printf(" Iter: %4i\n", iters)
+        #@printf(" %-50s", "Compute sigma 1: ")
+        #flush(stdout)
+        
+        nr = 0
+        if length(size(v)) == 1
+            nr = 1
+            v = reshape(v,prb.dim, nr)
+        else 
+            nr = size(v)[2]
+        end
+        v = reshape(v, prb.dima, prb.dimb, nr)
+        
+        sigma1 = ActiveSpaceSolvers.RASCI.compute_sigma_one(b_configs, b_lookup, v, ints, prb)
+        sigma2 = ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb)
+        sigma3 = ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb)
+        
+        sig = sigma1 + sigma2 + sigma3
+        
+        v = reshape(v,prb.dim, nr)
+        sig = reshape(sig, prb.dim, nr)
+        sig .+= ints.h0*v
+        return sig
     end
     return LinearMap(mymatvec, prb.dim, prb.dim, issymmetric=true, ismutating=false, ishermitian=true)
 end
@@ -130,6 +139,18 @@ function ras_calc_ndets(no, nelec, fock, ras1_min, ras3_max)
     #dim_x = no 
     return dim_x, x
 end
+
+function calc_ndets(no,nelec)
+    if no > 20
+        x = factorial(big(no))
+        y = factorial(nelec)
+        z = factorial(big(no-nelec))
+        return Int64(x÷(y*z))
+    end
+
+    return factorial(no)÷(factorial(nelec)*factorial(no-nelec))
+end
+
 
 """
 """
@@ -343,8 +364,8 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 """
 function ActiveSpaceSolvers.compute_operator_cca_abb(bra::Solution{RASCIAnsatz,T}, 
                                                      ket::Solution{RASCIAnsatz,T}) where {T}
-    return ActiveSpaceSolvers.RASCI.compute_operator_cca_abb(bra::Solution{RASCIAnsatz,T}, 
-                                                 ket::Solution{RASCIAnsatz,T}) where {T}
+    return ActiveSpaceSolvers.RASCI.compute_operator_cca_abb(bra::Solution{RASCIAnsatz}, 
+                                                 ket::Solution{RASCIAnsatz}) 
 end
 
 

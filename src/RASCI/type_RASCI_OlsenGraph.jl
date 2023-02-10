@@ -31,31 +31,31 @@ function calc_ndets(no, nelec, fock, ras1_min, ras3_max)
     return dim_x
 end
 
-function dfs_creation(graph::RASCI_OlsenGraph, n1::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
+function dfs_creation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
     if start == max
         #get config,index, add to nodes dictonary
-        index, config = get_index(graph.ne, path, graph.weights)
+        index, config = get_index(ket.ne, path, ket.weights)
 
-        for orb in 1:graph.no
+        for orb in 1:bra.no
             if orb in config
                 continue
             else
-                signa, conf = ActiveSpaceSolvers.RASCI.apply_creation!(config, orb, n1, must_obey)
+                signa, conf = ActiveSpaceSolvers.RASCI.apply_creation!(config, orb, bra, must_obey)
                 if conf == 0
                     continue
                 end
 
-                idxa = get_path_then_index(conf, n1)
+                idxa = get_path_then_index(conf, bra)
                 lu[index, orb] = idxa
                 lus[index, orb] = signa
             end
         end
     else
-        for i in graph.connect[start]
+        for i in ket.connect[start]
             if visited[i]==false
-                dfs_creation(graph, n1, i,max, lu, lus, must_obey, visited, path)
+                dfs_creation(ket, bra, i,max, lu, lus, must_obey, visited, path)
             end
         end
     end
@@ -66,25 +66,79 @@ function dfs_creation(graph::RASCI_OlsenGraph, n1::RASCI_OlsenGraph, start, max,
     return lu, lus#=}}}=#
 end
 
-function dfs_annhilation(graph::RASCI_OlsenGraph, n1::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
+function dfs_annhilation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
     if start == max
         #get config,index, add to nodes dictonary
-        index, config = get_index(graph.ne, path, graph.weights)
+        index, config = get_index(ket.ne, path, ket.weights)
         for orb in config
-            signa, conf = ActiveSpaceSolvers.RASCI.apply_annhilation!(config, orb, n1, must_obey)
+            signa, conf = ActiveSpaceSolvers.RASCI.apply_annhilation!(config, orb, bra, must_obey)
             if conf == 0
                 continue
             end
-            idxa = get_path_then_index(conf, n1)
+            idxa = get_path_then_index(conf, bra)
             lu[index, orb] = idxa
             lus[index, orb] = signa
         end
     else
-        for i in graph.connect[start]
+        for i in ket.connect[start]
             if visited[i]==false
-                dfs_annhilation(graph, n1, i,max, lu, lus, must_obey, visited, path)
+                dfs_annhilation(ket, bra, i,max, lu, lus, must_obey, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return lu, lus#=}}}=#
+end
+
+function dfs_no_operation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index, config = get_index(ket.ne, path, ket.weights)
+        #println("config: ", config)
+        #println("index in ket graph: ", index)
+        
+        #is config in bra graph?
+        i_orbs, ii_orbs, iii_orbs = RASCI.make_rasorbs(bra.spaces[1], bra.spaces[2], bra.spaces[3], bra.no)
+        pass = true
+        #check RAS1 parameters
+        if bra.ras1_min != 0
+            if length(intersect(Set(i_orbs), Set(config))) < bra.ras1_min
+                #unallowed config in bra graph
+                idx = 0
+                pass = false
+                println("shouldnt be here")
+            end
+        end
+        
+        #check RAS3 parameters
+        if length(intersect(Set(iii_orbs), Set(config))) > bra.ras3_max
+            #unallowed config in bra graph
+            idx = 0
+            pass = false
+            println("shouldnt be here 2")
+        end
+        
+        if pass == true
+            idx = get_path_then_index(config, bra)
+        end
+
+        
+        for orb in 1:bra.no
+        #for orb in config
+            lu[index, orb] = idx
+            lus[index, orb] = 1
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_no_operation(ket, bra, i,max, lu, lus, must_obey, visited, path)
             end
         end
     end
