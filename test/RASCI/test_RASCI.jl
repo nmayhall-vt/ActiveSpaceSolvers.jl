@@ -45,5 +45,5 @@ v = abs.(v)
     #eval = eval[1]+ints.h0
     eval = eval[1]
     #v = v[:,1]
-    @test isapprox(eval, e[1], atol=10e-13)
+    @test isapprox(eval, e[1]+ints.h0, atol=10e-13)
 end

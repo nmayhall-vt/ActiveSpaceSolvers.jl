@@ -13,7 +13,8 @@ function test_rdms(problem, ints::InCoreInts, solver)
     e = solution.energies
     v = solution.vectors
     #e, v = solve(ints, problem, rand(problem.dim), 30, 1, 1e-6, true, false)
-    e = e[1]+ints.h0
+    e = e[1]
+    #e = e[1]+ints.h0
     v = v[:,1]
     a, b, aa, bb, ab = ActiveSpaceSolvers.compute_1rdm_2rdm(solution, root=1)
     #spin summ the rdms
