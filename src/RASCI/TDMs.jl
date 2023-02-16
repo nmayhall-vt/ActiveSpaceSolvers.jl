@@ -24,7 +24,7 @@ Compute representation of a operator between states `bra_v` and `ket_v` for alph
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_a_a(bra::Solution{RASCIAnsatz,T}, 
+function compute_operator_c_a(bra::Solution{RASCIAnsatz,T}, 
                               ket::Solution{RASCIAnsatz,T}) where {T}
 
     #i think nicks compute_annhilation has an incorrection dimension mismatch
@@ -52,12 +52,12 @@ Compute representation of a operator between states `bra_v` and `ket_v` for beta
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_a_b(bra::Solution{RASCIAnsatz,T}, 
+function compute_operator_c_b(bra::Solution{RASCIAnsatz,T}, 
                               ket::Solution{RASCIAnsatz,T}) where {T}
     
     #i think nicks compute_annhilation has an incorrection dimension mismatch
     bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) 
-    bra.ansatz.nb+1 == ket.ansatz.nb     || throw(DimensionMismatch) 
+    bra.ansatz.nb-1 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
     tbl1b, tbl1b_sign = generate_single_index_lookup(bra.ansatz, ket.ansatz, "beta")
     
@@ -233,6 +233,14 @@ function compute_operator_cc_ab(bra::Solution{RASCIAnsatz,T},
     bra.ansatz.na-1 == ket.ansatz.na     || throw(DimensionMismatch) 
     bra.ansatz.nb-1 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
+    # <s|p'q'|t>
+    # I and K are α strings
+    # J and L are β strings
+    # c(IJ,s) <IJ|a'b'|KL> c(KL,t) = 
+    # c(IJ,s) c(KL,t) <J|<I|a'b'|K>|L>
+    # c(IJ,s) c(KL,t) <J|<I|a'|K>b'|L> (-1)^ket.ansatz.na
+    # c(IJ,s) c(KL,t) <I|a'|K><J|b'|L> (-1)^ket.ansatz.na
+    
     tbl1a, tbl1a_sign = generate_single_index_lookup(bra.ansatz, ket.ansatz, "alpha")
     tbl1b, tbl1b_sign = generate_single_index_lookup(bra.ansatz, ket.ansatz, "beta")
     
@@ -247,7 +255,43 @@ function compute_operator_cc_ab(bra::Solution{RASCIAnsatz,T},
     
     #   TDM[pq,s,t] = 
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no, bra.ansatz.no)
+    
+    sgnK = 1 
+    if (ket.ansatz.na) % 2 != 0 
+        sgnK = -sgnK
+    end
 
+    for K in 1:size(tbla1,1)
+        for p in 1:bra.ansatz.no
+            I = tbl1a[K,p]
+            I != 0 || continue
+            Ksign = tbl1a_sign[K,p]
+            for J in 1:size(tblb1, 1)
+                for q in 1:bra.ansatz.no
+                    J = tbl1b[J,q]
+                    J != 0 || continue
+                    Lsign = tbl1b_sign[J, a]
+                    
+                    @views tdm_pqr = tdm[:,:,p,q] 
+                    @views v1_IJ = v1[:,I,J]
+                    @views v2_KL = v2[:,K,L]
+                    sgn = Ksign*Lsign*sgnK
+                    
+                    if sgn == 1
+                        @tensor begin 
+                            tdm_pqr[s,t] += v1_IJ[s] * v2_KL[t]
+                        end
+                    else
+                        @tensor begin 
+                            tdm_pqr[s,t] -= v1_IJ[s] * v2_KL[t]
+                        end
+                    end
+                end
+            end
+        end
+    end
+    tdm = permutedims(tdm, [3,4,5,1,2])
+    return tdm
 end
 
 

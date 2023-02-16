@@ -358,7 +358,7 @@ end
 
 
 """
-    compute_operator_a_a(bra::Solution{FCIAnsatz,T}, ket::Solution{FCIAnsatz,T}) where {T}
+    compute_operator_c_a(bra::Solution{FCIAnsatz,T}, ket::Solution{FCIAnsatz,T}) where {T}
 
 Compute representation of a operator between states `bra_v` and `ket_v` for alpha
 # Arguments
@@ -366,11 +366,11 @@ Compute representation of a operator between states `bra_v` and `ket_v` for alph
 - `ket`: solutions for the right hand side
 
 """
-function ActiveSpaceSolvers.compute_operator_a_a(bra::Solution{FCIAnsatz,T}, 
+function ActiveSpaceSolvers.compute_operator_c_a(bra::Solution{FCIAnsatz,T}, 
                                                  ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
     n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
-    return compute_annihilation(n_orb(bra), 
+    return compute_creation(n_orb(bra), 
                                 n_elec_a(bra), n_elec_b(bra),
                                 n_elec_a(ket), n_elec_b(ket),
                                 bra.vectors, ket.vectors,
@@ -391,11 +391,11 @@ Compute representation of a operator between states `bra_v` and `ket_v` for beta
 - `ket`: solutions for the right hand side
 
 """
-function ActiveSpaceSolvers.compute_operator_a_b(bra::Solution{FCIAnsatz,T}, 
+function ActiveSpaceSolvers.compute_operator_c_b(bra::Solution{FCIAnsatz,T}, 
                                                  ket::Solution{FCIAnsatz,T}) where {T}
     #={{{=#
     n_orb(bra) == n_orb(ket) || throw(DimensionMismatch) 
-    return compute_annihilation(n_orb(bra), 
+    return compute_creation(n_orb(bra), 
                                 n_elec_a(bra), n_elec_b(bra),
                                 n_elec_a(ket), n_elec_b(ket),
                                 bra.vectors, ket.vectors,

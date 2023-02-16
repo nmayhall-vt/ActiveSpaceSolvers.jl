@@ -21,8 +21,8 @@ function apply_S2_matrix end
 function compute_1rdm end     
 function compute_1rdm_2rdm end    
 # operator functions
-function compute_operator_a_a end     
-function compute_operator_a_b end     
+function compute_operator_c_a end     
+function compute_operator_c_b end     
 function compute_operator_ca_aa end     
 function compute_operator_ca_bb end     
 function compute_operator_ca_ab end     
@@ -54,8 +54,8 @@ export apply_S2_matrix
 export solve 
 export compute_1rdm
 export compute_1rdm_2rdm
-export compute_operator_a_a
-export compute_operator_a_b
+export compute_operator_c_a
+export compute_operator_c_b
 export compute_operator_ca_aa      
 export compute_operator_ca_bb      
 export compute_operator_ca_ab      
