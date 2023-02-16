@@ -5,7 +5,7 @@ using TensorOperations
 
 
 """
-    compute_annihilation(no::Integer, bra_na, bra_nb, ket_na, ket_nb, bra_v::Matrix, ket_v::Matrix, spin_case)
+    compute_creation(no::Integer, bra_na, bra_nb, ket_na, ket_nb, bra_v::Matrix, ket_v::Matrix, spin_case)
 
 Compute an creation operator between states `bra_v` and `ket_v`
 # Arguments
@@ -18,7 +18,7 @@ Compute an creation operator between states `bra_v` and `ket_v`
 - `ket_v`: basis vectors ket
 - `spin_case`: either (alpha|beta)
 """
-function compute_annihilation(no::Integer, bra_na, bra_nb, ket_na, ket_nb, bra_v::Matrix, ket_v::Matrix, spin_case)
+function compute_creation(no::Integer, bra_na, bra_nb, ket_na, ket_nb, bra_v::Matrix, ket_v::Matrix, spin_case)
 #={{{=#
     bra_a = DeterminantString(no,bra_na)
     bra_b = DeterminantString(no,bra_nb)
