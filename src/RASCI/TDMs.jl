@@ -172,6 +172,14 @@ function compute_operator_cc_bb(bra::Solution{RASCIAnsatz,T},
     bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) 
     bra.ansatz.nb-2 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
+    # <s|p'q'|t>
+    # I and K are α strings
+    # J and L are β strings
+    # c(IJ,s) <IJ|b'b'|KL> c(KL,t) =
+    # c(IJ,s) c(KL,t) <J|<I|b'b'|K>|L>
+    # c(IJ,s) c(KL,t) <I|K><J|b'b'|L>
+    # c(IJ,s) c(KL,t) sum_m <I|K><J|b'|m><m|b'|L>
+    
     ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb+1, ket.ansatz.fock)
     
     tbl1b, tbl1b_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "beta")
@@ -185,7 +193,36 @@ function compute_operator_cc_bb(bra::Solution{RASCIAnsatz,T},
     
     #   TDM[pq,s,t] = 
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no, bra.ansatz.no)
+    
+    for L in 1:size(tbl1b,1)
+        for p in 1:bra.ansatz.no
+            for q in 1:bra.ansatz.no
+                rL = tbl1b[L,q]
+                rL != 0 || continue
+                Lsign = tbl1b_sign[L,q]
+                J = tbl2b[rL,p]
+                J != 0 || continue
+                Lsign = Lsign*tbl2b_sign[rL,p]
 
+                @views tdm_pqr = tdm[:,:,p,q] 
+                @views v1_IJ = v1[:,:,J]
+                @views v2_KL = v2[:,:,L]
+
+                if Ksign == 1
+                    @tensor begin 
+                        tdm_pqr[s,t] += v1_IJ[J,s] * v2_KL[J,t]
+                    end
+                else
+                    @tensor begin 
+                        tdm_pqr[s,t] -= v1_IJ[J,s] * v2_KL[J,t]
+                    end
+                end
+            end
+        end
+    end
+    #                      [p,q,s,t]
+    tdm = permutedims(tdm, [3,4,1,2])
+    return tdm#=}}}=#
 end
 
 
@@ -203,6 +240,14 @@ function compute_operator_cc_aa(bra::Solution{RASCIAnsatz,T},
     bra.ansatz.na-2 == ket.ansatz.na     || throw(DimensionMismatch) 
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
     
+    # <s|p'q'|t>
+    # I and K are α strings
+    # J and L are β strings
+    # c(IJ,s) <IJ|a'a'|KL> c(KL,t) =
+    # c(IJ,s) c(KL,t) <J|<I|a'a'|K>|L>
+    # c(IJ,s) c(KL,t) <J|L><I|a'a'|K>
+    # c(IJ,s) c(KL,t) sum_m <J|L><I|a'|m><m|a'|K>
+    
     ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na+1, ket.ansatz.nb, ket.ansatz.fock)
     
     tbl1a, tbl1a_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "alpha")
@@ -216,6 +261,36 @@ function compute_operator_cc_aa(bra::Solution{RASCIAnsatz,T},
     
     #   TDM[pq,s,t] = 
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no, bra.ansatz.no)
+    
+    for K in 1:size(tbl1a,1)
+        for p in 1:bra.ansatz.no
+            for q in 1:bra.ansatz.no
+                rK = tbl1a[K,q]
+                rK != 0 || continue
+                Ksign = tbl1a_sign[K,q]
+                I = tbl2a[rK,p]
+                I != 0 || continue
+                Ksign = Ksign*tbl2a_sign[rK,p]
+
+                @views tdm_pqr = tdm[:,:,p,q] 
+                @views v1_IJ = v1[:,:,I]
+                @views v2_KL = v2[:,:,K]
+
+                if Ksign == 1
+                    @tensor begin 
+                        tdm_pqr[s,t] += v1_IJ[I,s] * v2_KL[I,t]
+                    end
+                else
+                    @tensor begin 
+                        tdm_pqr[s,t] -= v1_IJ[I,s] * v2_KL[I,t]
+                    end
+                end
+            end
+        end
+    end
+    #                      [p,q,s,t]
+    tdm = permutedims(tdm, [3,4,1,2])
+    return tdm#=}}}=#
 end
 
 
@@ -230,7 +305,7 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 """
 function compute_operator_cc_ab(bra::Solution{RASCIAnsatz,T}, 
                                                    ket::Solution{RASCIAnsatz,T}) where {T}
-    bra.ansatz.na-1 == ket.ansatz.na     || throw(DimensionMismatch) 
+    bra.ansatz.na-1 == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb-1 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
     # <s|p'q'|t>
@@ -261,16 +336,16 @@ function compute_operator_cc_ab(bra::Solution{RASCIAnsatz,T},
         sgnK = -sgnK
     end
 
-    for K in 1:size(tbla1,1)
+    for K in 1:size(tbl1a,1)
         for p in 1:bra.ansatz.no
             I = tbl1a[K,p]
             I != 0 || continue
             Ksign = tbl1a_sign[K,p]
-            for J in 1:size(tblb1, 1)
+            for L in 1:size(tbl1b, 1)
                 for q in 1:bra.ansatz.no
-                    J = tbl1b[J,q]
+                    J = tbl1b[L,q]
                     J != 0 || continue
-                    Lsign = tbl1b_sign[J, a]
+                    Lsign = tbl1b_sign[L,q]
                     
                     @views tdm_pqr = tdm[:,:,p,q] 
                     @views v1_IJ = v1[:,I,J]
@@ -290,8 +365,8 @@ function compute_operator_cc_ab(bra::Solution{RASCIAnsatz,T},
             end
         end
     end
-    tdm = permutedims(tdm, [3,4,5,1,2])
-    return tdm
+    tdm = permutedims(tdm, [3,4,1,2])
+    return tdm#=}}}=#
 end
 
 
