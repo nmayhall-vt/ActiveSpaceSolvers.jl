@@ -192,7 +192,7 @@ Compute representation of a operator between states `bra_v` and `ket_v` for alph
 """
 function ActiveSpaceSolvers.compute_operator_c_a(bra::Solution{RASCIAnsatz,T}, 
                                                  ket::Solution{RASCIAnsatz,T}) where {T}
-    return ActiveSpacesolvers.RASCI.compute_operator_c_a(bra::Solution{RASCIAnsatz},                                                       ket::Solution{RASCIAnsatz})
+    return ActiveSpacesolvers.RASCI.compute_operator_c_a(bra::Solution{RASCIAnsatz}, ket::Solution{RASCIAnsatz})
 end
 
 """

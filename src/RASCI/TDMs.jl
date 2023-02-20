@@ -140,6 +140,14 @@ function compute_operator_ca_ab(bra::Solution{RASCIAnsatz,T},
     bra.ansatz.na-1 == ket.ansatz.na     || throw(DimensionMismatch) 
     bra.ansatz.nb+1 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
+    # <s|p'q'|t>
+    # I and K are α strings
+    # J and L are β strings
+    # c(IJ,s) <IJ|a'b|KL> c(KL,t) =
+    # c(IJ,s) c(KL,t) <J|<I|a'b|K>|L>
+    # c(IJ,s) c(KL,t) <J|<I|a'|K>b|L> (-1)^ket.ansatz.na
+    # c(IJ,s) c(KL,t) <I|a'|K><J|b|L> (-1)^ket.ansatz.na
+    
     tbl1a, tbl1a_sign = generate_single_index_lookup(bra.ansatz, ket.ansatz, "alpha")
     tbl1b, tbl1b_sign = generate_single_index_lookup(bra.ansatz, ket.ansatz, "beta")
     
@@ -154,12 +162,50 @@ function compute_operator_ca_ab(bra::Solution{RASCIAnsatz,T},
     
     #   TDM[pq,s,t] = 
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no, bra.ansatz.no)
+    
+    sgnK = 1 
+    if (ket.ansatz.na) % 2 != 0 
+        sgnK = -sgnK
+    end
 
+    for K in 1:size(tbl1a, 1)
+        for p in 1:bra.ansatz.no
+            I = tbl1a[K,p]
+            I != 0 || continue
+            Ksign = tbl1a_sign[K, p]
+            for L in 1:size(tbl1b, 1)
+                for q in 1:bra.ansatz.no
+                    J = tbl1b[L, q]
+                    J != 0 || continue
+                    Lsign = tbl1b_sign[L, q]
+                    @views tdm_pqr = tdm[:,:,p,q] 
+                    @views v1_IJ = v1[:,:,J]
+                    @views v2_KL = v2[:,:,L]
+
+                    sgn = Ksign*Lsign*sgnK
+
+                    if sgn == 1
+                        @tensor begin 
+                            tdm_pqr[s,t] += v1_IJ[J,s] * v2_KL[J,t]
+                        end
+                    else
+                        @tensor begin 
+                            tdm_pqr[s,t] -= v1_IJ[J,s] * v2_KL[J,t]
+                        end
+                    end
+                end
+            end
+        end
+
+    end
+    #                      [p,q,s,t]
+    tdm = permutedims(tdm, [3,4,1,2])
+    return tdm#=}}}=#
 end
 
 
 """
-    compute_operator_cc_aa(bra::Solution{RASCIAnsatz,T}, ket::Solution{FCIAnsatz,T}) where {T}
+    compute_operator_cc_aa(bra::solution{rasciansatz,t}, ket::solution{fciansatz,t}) where {t}
 
 Compute representation of a'a' operators between states `bra_v` and `ket_v` for beta-beta 
 # Arguments
@@ -169,7 +215,7 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 """
 function compute_operator_cc_bb(bra::Solution{RASCIAnsatz,T}, 
                                                    ket::Solution{RASCIAnsatz,T}) where {T}
-    bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) 
+    bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb-2 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
     # <s|p'q'|t>
@@ -237,7 +283,7 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 """
 function compute_operator_cc_aa(bra::Solution{RASCIAnsatz,T}, 
                                                    ket::Solution{RASCIAnsatz,T}) where {T}
-    bra.ansatz.na-2 == ket.ansatz.na     || throw(DimensionMismatch) 
+    bra.ansatz.na-2 == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
     
     # <s|p'q'|t>
