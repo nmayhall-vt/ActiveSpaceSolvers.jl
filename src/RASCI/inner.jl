@@ -827,6 +827,207 @@ function apply_creation!(config, orb_index, graph::RASCI_OlsenGraph, must_obey::
 end
 
 """
+    apply_S2_matrix(prb::RASCIAnsatz, v::AbstractArray{T}) where {T}
+- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., fock sector)
+"""
+function apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where {T}
+    P.dim == size(v,1) || throw(DimensionMismatch)#={{{=#
+    S2v = zeros(size(v)...)
+    
+    a_configs = compute_configs(P)[1]
+    b_configs = compute_configs(P)[2]
+    
+    #fill single excitation lookup tables
+    a_lookup = fill_lookup(P, a_configs, P.dima)
+    #b_lookup = fill_lookup(P, b_configs, P.dimb)
+    beta_graph = RASCI_OlsenGraph(P.no, P.nb+1, P.fock, P.ras1_min, P.ras3_max)
+    bra_graph = RASCI_OlsenGraph(P.no, P.nb, P.fock, P.ras1_min, P.ras3_max)
+
+    for Kb in b_configs
+        for Ka in a_configs
+            K = Ka[2] + (Kb[2]-1)*P.dima
+
+            #Sz.Sz
+            for ai in Ka[1]
+                for aj in Ka[1]
+                    if ai!= aj
+                        S2v[K,:] .+= 0.25 .* v[K,:]
+                    end
+                end
+            end
+
+            for bi in Kb[1]
+                for bj in Kb[1]
+                    if bi != bj
+                        S2v[K,:] .+= 0.25 .* v[K,:]
+                    end
+                end
+            end
+
+            for ai in Ka[1]
+                for bj in Kb[1]
+                    if ai != bj
+                        S2v[K,:] .-= 0.50 .* v[K,:]
+                    end
+                end
+            end
+
+            #Sp.Sm
+            for ai in Ka[1]
+                if ai in Kb[1]
+                else
+                    S2v[K,:] .+= 0.75 .* v[K,:]
+                end
+            end
+
+            #Sm.Sp
+            for bi in Kb[1]
+                if bi in Ka[1]
+                else
+                    S2v[K,:] .+= 0.75 .* v[K,:]
+                end
+            end
+
+            for ai in Ka[1]
+                for bj in Kb[1]
+                    if ai ∉ Kb[1]
+                        if bj ∉ Ka[1]
+                            La = a_lookup[ai, bj, Ka[2]] 
+                            La != 0 || continue
+                            sign_a = sign(La)
+                           
+                            #lookup table annhilates then creates but we need create then annhilate
+                            #Lb = b_lookup[bj, ai, Kb[2]]
+                            #Lb != 0 || continue
+                            #sign_b = sign(Lb)
+                            signb, conf = apply_creation!(Kb[1], ai, beta_graph, false)
+                            conf != 0 || continue
+                            idxb = get_path_then_index(conf, beta_graph)
+                            sign_b, conf_ann = apply_annhilation!(conf, bj, bra_graph, true)
+                            conf_ann != 0 || continue
+                            Lb = get_path_then_index(conf_ann, bra_graph)
+                            sign_b = sign_b*signb
+
+                            L = abs(La) + (abs(Lb)-1)*P.dima
+                            S2v[K,:] .+= sign_a.*sign_b.*v[L,:]
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return S2v#=}}}=#
+end
+
+
+"""
+    compute_S2_expval(prb::RASCIAnsatz)
+- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., fock sector)
+"""
+function compute_S2_expval(v::Matrix, P::RASCIAnsatz)
+
+    nr = size(v,2)#={{{=#
+    s2 = zeros(nr)
+    
+    a_configs = compute_configs(P)[1]
+    b_configs = compute_configs(P)[2]
+    
+    #fill single excitation lookup tables
+    a_lookup = fill_lookup(P, a_configs, P.dima)
+    #b_lookup = fill_lookup(P, b_configs, P.dimb)
+    beta_graph = RASCI_OlsenGraph(P.no, P.nb+1, P.fock, P.ras1_min, P.ras3_max)
+    bra_graph = RASCI_OlsenGraph(P.no, P.nb, P.fock, P.ras1_min, P.ras3_max)
+
+    for Kb in b_configs
+        for Ka in a_configs
+            K = Ka[2] + (Kb[2]-1)*P.dima
+
+            #Sz.Sz
+            for ai in Ka[1]
+                for aj in Ka[1]
+                    if ai!= aj
+                        for r in 1:nr
+                            s2[r] += 0.25 * v[K,r]*v[K,r]
+                        end
+                    end
+                end
+            end
+
+            for bi in Kb[1]
+                for bj in Kb[1]
+                    if bi != bj
+                        for r in 1:nr
+                            s2[r] += 0.25 * v[K,r]*v[K,r]
+                        end
+                    end
+                end
+            end
+
+            for ai in Ka[1]
+                for bj in Kb[1]
+                    if ai != bj
+                        for r in 1:nr
+                            s2[r] -= .5 * v[K,r]*v[K,r] 
+                        end
+                    end
+                end
+            end
+
+            #Sp.Sm
+            for ai in Ka[1]
+                if ai in Kb[1]
+                else
+                    for r in 1:nr
+                        s2[r] += .75 * v[K,r]*v[K,r] 
+                    end
+                end
+            end
+
+            #Sm.Sp
+            for bi in Kb[1]
+                if bi in Ka[1]
+                else
+                    for r in 1:nr
+                        s2[r] += .75 * v[K,r]*v[K,r] 
+                    end
+                end
+            end
+
+            for ai in Ka[1]
+                for bj in Kb[1]
+                    if ai ∉ Kb[1]
+                        if bj ∉ Ka[1]
+                            La = a_lookup[ai, bj, Ka[2]] 
+                            La != 0 || continue
+                            sign_a = sign(La)
+                           
+                            #lookup table annhilates then creates but we need create then annhilate
+                            #Lb = b_lookup[bj, ai, Kb[2]]
+                            #Lb != 0 || continue
+                            #sign_b = sign(Lb)
+                            signb, conf = apply_creation!(Kb[1], ai, beta_graph, false)
+                            conf != 0 || continue
+                            idxb = get_path_then_index(conf, beta_graph)
+                            sign_b, conf_ann = apply_annhilation!(conf, bj, bra_graph, true)
+                            conf_ann != 0 || continue
+                            Lb = get_path_then_index(conf_ann, bra_graph)
+                            sign_b = sign_b*signb
+
+                            L = abs(La) + (abs(Lb)-1)*P.dima
+                            for r in 1:nr
+                                s2[r] += sign_a * sign_b * v[K,r] * v[L,r]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return s2#=}}}=#
+end
+
+
+"""
     compute_1rdm(p::RASCIAnsatz, v::Vector)
 
 # Arguments

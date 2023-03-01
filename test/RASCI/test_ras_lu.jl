@@ -2,7 +2,7 @@ using ActiveSpaceSolvers
 using Test
 using JLD2
 
-@load "ras_h6/_ras_solution_info.jld2"
+@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_ras_solution_info.jld2"
 #prob = p
 
 #function test_ras_lu(prob::ActiveSpaceSolvers.RASCI.RASCIAnsatz)

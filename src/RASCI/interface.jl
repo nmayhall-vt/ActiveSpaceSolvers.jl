@@ -151,15 +151,13 @@ function calc_ndets(no,nelec)
     return factorial(no)÷(factorial(nelec)*factorial(no-nelec))
 end
 
+"""
+    ActiveSpaceSolvers.compute_s2(sol::Solution)
 
+Compute the <S^2> expectation values for each state in `sol`
 """
-"""
-function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
-end
-
-"""
-"""
-function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
+function ActiveSpaceSolvers.compute_s2(sol::Solution{RASCIAnsatz,T}) where {T}
+    return compute_S2_expval(sol.vectors, sol.ansatz)
 end
 
 """
@@ -168,9 +166,113 @@ end
 Build the S2 matrix in the Slater Determinant Basis  specified by `P`
 """
 function ActiveSpaceSolvers.apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where T
+    return apply_S2_matrix(P,v)
 end
 
+"""
+"""
+function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
+    if ansatz.nb + 1 > ansatz.no#={{{=#
+        error(" Can't decrease Ms further")
+    end
+    # Sm = b'a
+    # = c(IJ,s) <IJ|b'a|KL> c(KL,t)
+    # = c(IJ,s)c(KL,t) <J|<I|b'a|K>|L>
+    # = c(IJ,s)c(KL,t) <J|<I|ab'|K>|L> (-1)
+    # = c(IJ,s)c(KL,t) <J|<I|a|K>b'|L> (-1) (-1)^ket_a.ne
+    # = c(IJ,s)c(KL,t) <I|a|K><J|b'|L> (-1) (-1)^ket_a.ne
+    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.fock, ansatz.ras1_min, ansatz.ras3_max)
+    
+    tbla, tbla_sign = generate_single_index_lookup(bra_ansatz, ansatz, "alpha")
+    tblb, tblb_sign = generate_single_index_lookup(bra_ansatz, ansatz, "beta")
 
+    sgnK = -1
+    if ansatz.na % 2 != 0 
+        sgnK = -sgnK
+    end
+    
+    w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
+
+    for Kb in 1:size(tblb, 1)
+        for Ka in 1:size(tbla, 1)
+            K = Ka + (Kb-1)*ansatz.dima
+            for ai in 1:ansatz.no
+                La = tbla[Ka, ai]
+                La != 0 || continue
+                La_sign = tbla_sign[Ka, ai]
+                Lb = tblb[Kb, ai]
+                Lb != 0 || continue
+                Lb_sign = tblb_sign[Kb, ai]
+                L = La + (Lb-1)*bra_ansatz.dima
+                w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
+            end
+        end
+    end
+
+    #only keep the states that aren't zero (that weren't killed by S-)
+    wout = zeros(size(w,1),0)
+    for i in 1:size(w,2)
+        ni = norm(w[:,i])
+        if isapprox(ni, 0, atol=1e-4) == false
+            wout = hcat(wout, w[:,i]./ni)
+        end
+    end
+
+    return wout, bra_ansatz#=}}}=#
+end
+
+"""
+"""
+function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
+
+    # Sp = a'b{{{
+    # = c(IJ,s) <IJ|a'b|KL> c(KL,t)
+    # = c(IJ,s)c(KL,t) <J|<I|a'b|K>|L>
+    # = c(IJ,s)c(KL,t) <J|<I|a'|K>b|L> (-1)^ket_a.ne
+    # = c(IJ,s)c(KL,t) <I|a'|K><J|b|L> (-1)^ket_a.ne
+    
+    if na + 1 > no
+        error(" Can't increase Ms further")
+    end
+
+    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.fock, ansatz.ras1_min, ansatz.ras3_max)
+    
+    tbla, tbla_sign = generate_single_index_lookup(bra_ansatz, ansatz, "alpha")
+    tblb, tblb_sign = generate_single_index_lookup(bra_ansatz, ansatz, "beta")
+
+    sgnK = 1
+    if ansatz.na % 2 != 0 
+        sgnK = -sgnK
+    end
+    
+    w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
+    for Kb in 1:size(tblb, 1)
+        for Ka in 1:size(tbla, 1)
+            K = Ka + (Kb-1)*ansatz.dima
+            for ai in 1:ansatz.no
+                La = tbla[Ka, ai]
+                La != 0 || continue
+                La_sign = tbla_sign[Ka, ai]
+                Lb = tblb[Kb, ai]
+                Lb != 0 || continue
+                Lb_sign = tblb_sign[Kb, ai]
+                L = La + (Lb-1)*ansatz.dima
+                w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
+            end
+        end
+    end
+
+    #only keep the states that aren't zero (that weren't killed by S-)
+    wout = zeros(size(w,1),0)
+    for i in 1:size(w,2)
+        ni = norm(w[:,i])
+        if isapprox(ni, 0, atol=1e-4) == false
+            wout = hcat(wout, w[:,i]./ni)
+        end
+    end
+
+    return wout, bra_ansatz#=}}}=#
+end
 
 """
     build_H_matrix(ints, P::RASCIAnsatz)
@@ -192,7 +294,7 @@ Compute representation of a operator between states `bra_v` and `ket_v` for alph
 """
 function ActiveSpaceSolvers.compute_operator_c_a(bra::Solution{RASCIAnsatz,T}, 
                                                  ket::Solution{RASCIAnsatz,T}) where {T}
-    return ActiveSpacesolvers.RASCI.compute_operator_c_a(bra::Solution{RASCIAnsatz}, ket::Solution{RASCIAnsatz})
+    return ActiveSpaceSolvers.RASCI.compute_operator_c_a(bra::Solution{RASCIAnsatz}, ket::Solution{RASCIAnsatz})
 end
 
 """

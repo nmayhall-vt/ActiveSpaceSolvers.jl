@@ -65,7 +65,7 @@ end
 
 Compute the <S^2> expectation values for each state in `sol`
 """
-function ActiveSpaceSolvers.compute_s2(sol::Solution)
+function ActiveSpaceSolvers.compute_s2(sol::Solution{FCIAnsatz,T}) where {T}
     return compute_S2_expval(sol.vectors, sol.ansatz)
 end
 

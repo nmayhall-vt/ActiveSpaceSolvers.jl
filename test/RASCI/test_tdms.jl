@@ -9,17 +9,17 @@ using JLD2
 
 @testset "RASCI TDMs" begin
     @testset "cca_abb" begin
-        tdm_cca_abb_2 = ActiveSpaceSolvers.compute_operator_cca_abb(ras_bra_sol, ras_ket_sol);
+        tdm_cca_abb_2 = compute_operator_cca_abb(ras_bra_sol, ras_ket_sol);
         @test isapprox(tdm_cca_abb_2, tdm_cca_abb, atol=1e-12)
     end
 
     @testset "cca_aba" begin
-        tdm_cca_aba_2 = ActiveSpaceSolvers.compute_operator_cca_aba(ras_bra_aba_sol, ras_ket_aba_sol);
+        tdm_cca_aba_2 = compute_operator_cca_aba(ras_bra_aba_sol, ras_ket_aba_sol);
         @test isapprox(tdm_cca_aba_2, tdm_cca_aba, atol=1e-12)
     end
 
     @testset "cca_bbb" begin
-        tdm_cca_bbb_2 = ActiveSpaceSolvers.compute_operator_cca_bbb(ras_bra_bbb_sol, ras_ket_bbb_sol);
+        tdm_cca_bbb_2 = compute_operator_cca_bbb(ras_bra_bbb_sol, ras_ket_bbb_sol);
         @test isapprox(tdm_cca_bbb_2, tdm_cca_bbb, atol=1e-12)
     end
 

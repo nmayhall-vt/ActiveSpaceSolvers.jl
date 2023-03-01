@@ -8,8 +8,8 @@ using Arpack
 using NPZ
 using JLD2
 
-@load "ras_h6/_integrals.jld2"
-@load "ras_h6/_ras_solution_info.jld2"
+@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_integrals.jld2"
+@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_ras_solution_info.jld2"
 
 v = abs.(v)
 

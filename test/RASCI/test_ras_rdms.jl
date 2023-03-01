@@ -5,8 +5,8 @@ using JLD2
 using QCBase
 #using RDM
 
-@load "ras_h6/_integrals.jld2"
-@load "ras_h6/_ras_solution_info.jld2"
+@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_integrals.jld2"
+@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_ras_solution_info.jld2"
 
 function test_rdms(problem, ints::InCoreInts, solver)
     solution = ActiveSpaceSolvers.solve(ints, problem, solver)
