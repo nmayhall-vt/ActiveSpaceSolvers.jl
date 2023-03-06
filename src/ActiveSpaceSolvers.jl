@@ -11,6 +11,7 @@ using InteractiveUtils
 abstract type Ansatz end        
 include("type_Solutions.jl");
 include("type_SolverSettings.jl");
+include("generate_fock_sectors.jl");
 
 
 # Interface Methods: extend each for a new `Ansatz`

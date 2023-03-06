@@ -587,7 +587,7 @@ end
 function fill_lookup(prob::RASCIAnsatz, configs, dim_s)
     lookup_table = zeros(Int64,prob.no, prob.no, dim_s)#={{{=#
     orbs = [1:prob.no;]
-    ras1, ras2, ras3 = make_rasorbs(prob.fock[1], prob.fock[2], prob.fock[3], prob.no)
+    ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
     for i in configs
         vir = filter!(x->!(x in i[1]), [1:prob.no;])
         for p in i[1]
@@ -622,7 +622,7 @@ end
 function fill_lookup_ov(prob::RASCIAnsatz, configs, dim_s)
     lookup_table = zeros(Int64,prob.no, prob.no, dim_s)#={{{=#
     orbs = [1:prob.no;]
-    ras1, ras2, ras3 = make_rasorbs(prob.fock[1], prob.fock[2], prob.fock[3], prob.no)
+    ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
     for i in configs
         vir = filter!(x->!(x in i[1]), [1:prob.no;])
         for p in i[1]
@@ -725,7 +725,7 @@ end
     get_all_configs(x, y, nelecs)
 """
 function ras_get_all_configs(nelecs, prob::RASCIAnsatz)
-    ras_olsen = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, nelecs, prob.fock, prob.ras1_min, prob.ras3_max)#={{{=#
+    ras_olsen = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, nelecs, prob.ras_spaces, prob.ras1_min, prob.ras3_max)#={{{=#
     config_dict = old_dfs(nelecs, ras_olsen.connect, ras_olsen.weights, 1, ras_olsen.max)
     return config_dict#=}}}=#
 end
@@ -828,7 +828,7 @@ end
 
 """
     apply_S2_matrix(prb::RASCIAnsatz, v::AbstractArray{T}) where {T}
-- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., fock sector)
+- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
 """
 function apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where {T}
     P.dim == size(v,1) || throw(DimensionMismatch)#={{{=#
@@ -840,8 +840,8 @@ function apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where {T}
     #fill single excitation lookup tables
     a_lookup = fill_lookup(P, a_configs, P.dima)
     #b_lookup = fill_lookup(P, b_configs, P.dimb)
-    beta_graph = RASCI_OlsenGraph(P.no, P.nb+1, P.fock, P.ras1_min, P.ras3_max)
-    bra_graph = RASCI_OlsenGraph(P.no, P.nb, P.fock, P.ras1_min, P.ras3_max)
+    beta_graph = RASCI_OlsenGraph(P.no, P.nb+1, P.ras_spaces, P.ras1_min, P.ras3_max)
+    bra_graph = RASCI_OlsenGraph(P.no, P.nb, P.ras_spaces, P.ras1_min, P.ras3_max)
 
     for Kb in b_configs
         for Ka in a_configs
@@ -922,7 +922,7 @@ end
 
 """
     compute_S2_expval(prb::RASCIAnsatz)
-- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., fock sector)
+- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
 """
 function compute_S2_expval(v::Matrix, P::RASCIAnsatz)
 
@@ -935,8 +935,8 @@ function compute_S2_expval(v::Matrix, P::RASCIAnsatz)
     #fill single excitation lookup tables
     a_lookup = fill_lookup(P, a_configs, P.dima)
     #b_lookup = fill_lookup(P, b_configs, P.dimb)
-    beta_graph = RASCI_OlsenGraph(P.no, P.nb+1, P.fock, P.ras1_min, P.ras3_max)
-    bra_graph = RASCI_OlsenGraph(P.no, P.nb, P.fock, P.ras1_min, P.ras3_max)
+    beta_graph = RASCI_OlsenGraph(P.no, P.nb+1, P.ras_spaces, P.ras1_min, P.ras3_max)
+    bra_graph = RASCI_OlsenGraph(P.no, P.nb, P.ras_spaces, P.ras1_min, P.ras3_max)
 
     for Kb in b_configs
         for Ka in a_configs
@@ -1038,11 +1038,11 @@ function compute_1rdm(prob::RASCIAnsatz, v::Vector)
     vnew = reshape(v, prob.dima, prob.dimb)
     rdm1a = zeros(prob.no, prob.no)
     rdm1b = zeros(prob.no, prob.no)
-    ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.fock, prob.ras1_min, prob.ras3_max)
-    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.fock, prob.ras1_min, prob.ras3_max)
+    ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
+    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
     a_lu_a, a_lus_a, aa_lu_a, aa_lus_a, c_lu_a, c_lus_a, cc_lu_a, cc_lus_a = ActiveSpaceSolvers.RASCI.fill_lu(prob.no, prob.na, ga)
     a_lu_b, a_lus_b, aa_lu_b, aa_lus_b, c_lu_b, c_lus_b, cc_lu_b, cc_lus_b = ActiveSpaceSolvers.RASCI.fill_lu(prob.no, prob.nb, gb)
-    i_orbs, ii_orbs, iii_orbs = make_rasorbs(prob.fock[1], prob.fock[2], prob.fock[3], prob.no)
+    i_orbs, ii_orbs, iii_orbs = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
 
     #alpha p'q
     if a_lu_a != nothing
@@ -1104,8 +1104,8 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz, v::Vector)
     rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2bb = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2ab = zeros(prob.no, prob.no, prob.no, prob.no)
-    ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.fock, prob.ras1_min, prob.ras3_max)
-    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.fock, prob.ras1_min, prob.ras3_max)
+    ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
+    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
     
     a_lu_a, a_lus_a, aa_lu_a, aa_lus_a, c_lu_a, c_lus_a, cc_lu_a, cc_lus_a = ActiveSpaceSolvers.RASCI.fill_lu(prob.no, prob.na,ga)
     a_lu_b, a_lus_b, aa_lu_b, aa_lus_b, c_lu_b, c_lus_b, cc_lu_b, cc_lus_b = ActiveSpaceSolvers.RASCI.fill_lu(prob.no, prob.nb,gb)

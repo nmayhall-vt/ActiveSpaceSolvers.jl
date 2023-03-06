@@ -25,8 +25,8 @@ function RASCI_OlsenGraph(no, ne, spaces, ras1_min=1, ras3_max=2)
     return RASCI_OlsenGraph(no, ne, spaces, ras1_min, ras3_max, max_val, vert, connect, weights)
 end
 
-function calc_ndets(no, nelec, fock, ras1_min, ras3_max)
-    x = make_ras_x(no, nelec, fock, ras1_min, ras3_max)
+function calc_ndets(no, nelec, ras_spaces, ras1_min, ras3_max)
+    x = make_ras_x(no, nelec, ras_spaces, ras1_min, ras3_max)
     dim_x = findmax(x)[1]
     return dim_x
 end
@@ -283,7 +283,7 @@ function fill_lu(norb::Int, nelec::Int, g::RASCI_OlsenGraph)
     return a_lu, a_lus, aa_lu, aa_lus, c_lu, c_lus, cc_lu, cc_lus#=}}}=#
 end
 
-function make_ras_x(norbs, nelec, fock::SVector{3, Int}, ras1_min=1, ras3_max=2)
+function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=1, ras3_max=2)
     n_unocc = (norbs-nelec)+1#={{{=#
     x = zeros(Int, n_unocc, nelec+1)
 
@@ -301,20 +301,20 @@ function make_ras_x(norbs, nelec, fock::SVector{3, Int}, ras1_min=1, ras3_max=2)
 
     x[1,:].=1
     loc = [1,1]
-    #fock = (3,3,3)
+    #ras_spaces = (3,3,3)
     
     #RAS1
-    h = fock[1]-ras1_min
+    h = ras_spaces[1]-ras1_min
     for spot in 1:h
         loc[1] += 1
         update_x!(x, loc)
     end
-    p = fock[1]-h
+    p = ras_spaces[1]-h
     loc[2] += p
 
     #RAS2
     p2 = nelec-ras1_min-ras3_max
-    h2 = fock[2] - p2
+    h2 = ras_spaces[2] - p2
     for spot in 1:h2
         loc[1] += 1
         #check
@@ -328,7 +328,7 @@ function make_ras_x(norbs, nelec, fock::SVector{3, Int}, ras1_min=1, ras3_max=2)
     loc[2] += p2
 
     #RAS3
-    h3 = fock[3] - ras3_max
+    h3 = ras_spaces[3] - ras3_max
     for spot in 1:h3
         loc[1] += 1
         #check

@@ -150,7 +150,7 @@ function compute_operator_ca_aa(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) c(KL,t) <J|L><I|a'a|K>     
     # c(IJ,s) c(KL,t) sum_m<J|L><I|a'|m><m|a|K>     
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na-1, ket.ansatz.nb, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na-1, ket.ansatz.nb, ket.ansatz.ras_spaces)
     
     tbl1a, tbl1a_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "alpha")
     tbl2a, tbl2a_sign = generate_single_index_lookup(bra.ansatz, ansatz_m1, "alpha")
@@ -220,7 +220,7 @@ function compute_operator_ca_bb(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) c(KL,t) <I|K><J|b'b|L>     
     # c(IJ,s) c(KL,t) sum_m<I|K><J|b|m><m|'b|L>     
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb-1, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb-1, ket.ansatz.ras_spaces)
     
     tbl1b, tbl1b_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "beta")
     tbl2b, tbl2b_sign = generate_single_index_lookup(bra.ansatz, ansatz_m1, "beta")
@@ -368,7 +368,7 @@ function compute_operator_cc_bb(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) c(KL,t) <I|K><J|b'b'|L>
     # c(IJ,s) c(KL,t) sum_m <I|K><J|b'|m><m|b'|L>
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb+1, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb+1, ket.ansatz.ras_spaces)
     
     tbl1b, tbl1b_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "beta")
     tbl2b, tbl2b_sign = generate_single_index_lookup(bra.ansatz, ansatz_m1, "beta")
@@ -436,7 +436,7 @@ function compute_operator_cc_aa(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) c(KL,t) <J|L><I|a'a'|K>
     # c(IJ,s) c(KL,t) sum_m <J|L><I|a'|m><m|a'|K>
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na+1, ket.ansatz.nb, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na+1, ket.ansatz.nb, ket.ansatz.ras_spaces)
     
     tbl1a, tbl1a_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "alpha")
     tbl2a, tbl2a_sign = generate_single_index_lookup(bra.ansatz, ansatz_m1, "alpha")
@@ -580,8 +580,8 @@ function compute_operator_cca_aaa(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) c(KL,t) <J|L><I|a'a'a|K>   
     # c(IJ,s) c(KL,t) <J|L><I|a'|m><m|a'|m><m|a|K>
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na-1, ket.ansatz.nb, ket.ansatz.fock)
-    ansatz_m2 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na-1, ket.ansatz.nb, ket.ansatz.ras_spaces)
+    ansatz_m2 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb, ket.ansatz.ras_spaces)
     
     tbl1a, tbl1a_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "alpha")
     #println("α dim ", ket.ansatz.dima, " --> α dim ", bra.ansatz.dima)
@@ -668,8 +668,8 @@ function compute_operator_cca_bbb(bra::Solution{RASCIAnsatz,T},
         sgnK = -sgnK
     end
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb-1, ket.ansatz.fock)
-    ansatz_m2 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb-1, ket.ansatz.ras_spaces)
+    ansatz_m2 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb, ket.ansatz.ras_spaces)
     
     tbl1b, tbl1b_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "beta")
     #println("β dim ", ket.ansatz.dimb, " --> β dim ", ansatz_m1.dimb)
@@ -754,7 +754,7 @@ function compute_operator_cca_aba(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) c(KL,t) <I|a'a|K><J|b'|L> (-1) (-1)^ket.ansatz.na  
     # c(IJ,s) c(KL,t) \sum_m <I|a'|m><m|a|K><J|b'|L> 
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na-1, ket.ansatz.nb, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na-1, ket.ansatz.nb, ket.ansatz.ras_spaces)
     
     tbl1a, tbl1a_sign = generate_single_index_lookup(ansatz_m1, ket.ansatz, "alpha")
     #println("α dim ", ket.ansatz.dima, " --> α dim ", bra.ansatz.dima)
@@ -846,7 +846,7 @@ function compute_operator_cca_abb(bra::Solution{RASCIAnsatz},
     # c(IJ,s) c(KL,t) <I|a'|K><J|b'b|L> 
     # c(IJ,s) c(KL,t) \sum_m <I|a'|K><J|b'|m><m|b|L> 
     
-    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb-1, ket.ansatz.fock)
+    ansatz_m1 = RASCIAnsatz(ket.ansatz.no, ket.ansatz.na, ket.ansatz.nb-1, ket.ansatz.ras_spaces)
     
     tbl1a, tbl1a_sign = generate_single_index_lookup(bra.ansatz, ket.ansatz, "alpha")
     #println("α dim ", ket.ansatz.dima, " --> α dim ", bra.ansatz.dima)

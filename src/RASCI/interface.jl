@@ -23,7 +23,7 @@ Type containing all the metadata needed to define a RASCI problem
     iteration::Int
     algorithm::String   #  options: direct/davidson
     n_roots::Int
-    fock::SVector{3, Int}   #fock sector orbitals (RAS1, RAS2, RAS3)
+    ras_spaces::SVector{3, Int}   #fock sector orbitals (RAS1, RAS2, RAS3)
     ras1_min::Int       # min electrons in RAS1
     ras3_max::Int       # max electrons in RAS3
     xalpha::Array{Int}
@@ -36,7 +36,7 @@ struct RASCIAnsatz <: Ansatz
     dima::Int 
     dimb::Int 
     dim::Int
-    fock::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
+    ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     ras1_min::Int       # Minimum number of electrons in RAS1
     ras3_max::Int       # Max number of electrons in RAS3
     xalpha::Array{Int}
@@ -49,42 +49,44 @@ struct RASCIAnsatz <: Ansatz
 end
 
 """
-    RASCIAnsatz(no, na, nb, fock::Any, ras1_min=1, ras3_max=2)
+    RASCIAnsatz(no, na, nb, ras_spaces::Any, ras1_min=1, ras3_max=2)
 Constructor
 # Arguments
 - `no`: Number of spatial orbitals
 - `na`: Number of α electrons
 - `nb`: Number of β electrons
-- `fock`: Number of orbitals in each (RAS1, RAS2, RAS3)
+- `ras_spaces`: Number of orbitals in each (RAS1, RAS2, RAS3)
 - `ras1_min`: Minimum number of electrons in RAS1
 - `ras3_max`: Max number of electrons in RAS3
 """
-function RASCIAnsatz(no::Int, na::Int, nb::Int, fock::Any, ras1_min=0, ras3_max=fock[3])
+function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any, ras1_min=0, ras3_max=ras_spaces[3])
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
-    ras1_min <= fock[1] || throw(DimensionMismatch)
-    ras3_max <= fock[3] || throw(DimensionMismatch)
-    sum(fock) == no || throw(DimensionMismatch)
-    fock = convert(SVector{3,Int},collect(fock))
-    if fock[1] == 0 && fock[3] == 0
+    ras1_min <= ras_spaces[1] || throw(DimensionMismatch)
+    ras3_max <= ras_spaces[3] || throw(DimensionMismatch)
+    sum(ras_spaces) == no || throw(DimensionMismatch)
+    ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
+    na = convert(Int, na)
+    nb = convert(Int, nb)
+    if ras_spaces[1] == 0 && ras_spaces[3] == 0
         #FCI problem
         dima = calc_ndets(no, na)
         dimb = calc_ndets(no, nb)
-        xalpha = ras_calc_ndets(no, na, fock, ras1_min, ras3_max)[2]
-        xbeta = ras_calc_ndets(no, nb, fock, ras1_min, ras3_max)[2]
+        xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)[2]
+        xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)[2]
     else
-        dima, xalpha = ras_calc_ndets(no, na, fock, ras1_min, ras3_max)
-        dimb, xbeta = ras_calc_ndets(no, nb, fock, ras1_min, ras3_max)
+        dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
+        dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
     end
-    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, fock, ras1_min, ras3_max, xalpha, xbeta, false, false, 1, "direct", 1)
+    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_spaces, ras1_min, ras3_max, xalpha, xbeta, false, false, 1, "direct", 1)
 end
 
 function Base.display(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i\n",p.no,p.na,p.nb,p.fock[1], p.fock[2], p.fock[3], p.dim,  p.ras1_min, p.ras3_max)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max)
 end
 
 function Base.print(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i\n",p.no,p.na,p.nb,p.fock[1], p.fock[2], p.fock[3], p.dim,  p.ras1_min, p.ras3_max)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max)
 end
 
 """
@@ -133,8 +135,8 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
     return LinearMap(mymatvec, prb.dim, prb.dim, issymmetric=true, ismutating=false, ishermitian=true)
 end
 
-function ras_calc_ndets(no, nelec, fock, ras1_min, ras3_max)
-    x = ActiveSpaceSolvers.RASCI.make_ras_x(no, nelec, fock, ras1_min, ras3_max)
+function ras_calc_ndets(no, nelec, ras_spaces, ras1_min, ras3_max)
+    x = ActiveSpaceSolvers.RASCI.make_ras_x(no, nelec, ras_spaces, ras1_min, ras3_max)
     dim_x = findmax(x)[1]
     #dim_x = no 
     return dim_x, x
@@ -181,7 +183,7 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
     # = c(IJ,s)c(KL,t) <J|<I|ab'|K>|L> (-1)
     # = c(IJ,s)c(KL,t) <J|<I|a|K>b'|L> (-1) (-1)^ket_a.ne
     # = c(IJ,s)c(KL,t) <I|a|K><J|b'|L> (-1) (-1)^ket_a.ne
-    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.fock, ansatz.ras1_min, ansatz.ras3_max)
+    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, ansatz.ras1_min, ansatz.ras3_max)
     
     tbla, tbla_sign = generate_single_index_lookup(bra_ansatz, ansatz, "alpha")
     tblb, tblb_sign = generate_single_index_lookup(bra_ansatz, ansatz, "beta")
@@ -231,11 +233,11 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
     # = c(IJ,s)c(KL,t) <J|<I|a'|K>b|L> (-1)^ket_a.ne
     # = c(IJ,s)c(KL,t) <I|a'|K><J|b|L> (-1)^ket_a.ne
     
-    if na + 1 > no
+    if ansatz.na + 1 > ansatz.no
         error(" Can't increase Ms further")
     end
 
-    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.fock, ansatz.ras1_min, ansatz.ras3_max)
+    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, ansatz.ras1_min, ansatz.ras3_max)
     
     tbla, tbla_sign = generate_single_index_lookup(bra_ansatz, ansatz, "alpha")
     tblb, tblb_sign = generate_single_index_lookup(bra_ansatz, ansatz, "beta")
@@ -257,6 +259,8 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
                 Lb != 0 || continue
                 Lb_sign = tblb_sign[Kb, ai]
                 L = La + (Lb-1)*ansatz.dima
+                println("L ", L)
+                println("K ", K)
                 w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
             end
         end
