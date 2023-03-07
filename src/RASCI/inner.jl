@@ -44,8 +44,8 @@ function build_H_matrix(ints::InCoreInts, p::RASCIAnsatz)
         #compute both diag and off diag terms for sigma3 (mixed spin sigma)
         Hmat .+= compute_ab_terms_full(ints, p, a_configs, b_configs, a_lookup_ov, b_lookup_ov)
         #Nick has the following in his build_H_matrix function??
-        #Hmat = .5*(Hmat+Hmat')
-        #Hmat += 1.0I*ints.h0
+        Hmat = .5*(Hmat+Hmat')
+        Hmat += 1.0I*ints.h0
     
     #if open shell must compute alpha and beta separately
     else 
@@ -73,8 +73,8 @@ function build_H_matrix(ints::InCoreInts, p::RASCIAnsatz)
         Hmat .+= compute_ab_terms_full(ints, p, a_configs, b_configs, a_lookup_ov, b_lookup_ov)
         
         #Nick has the following in his build_H_matrix function??
-        #Hmat = .5*(Hmat+Hmat')
-        #Hmat += 1.0I*ints.h0
+        Hmat = .5*(Hmat+Hmat')
+        Hmat += 1.0I*ints.h0
     end#=}}}=#
     return Hmat
 end

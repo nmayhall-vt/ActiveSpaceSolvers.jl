@@ -287,6 +287,11 @@ function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=1, ras3_
     n_unocc = (norbs-nelec)+1#={{{=#
     x = zeros(Int, n_unocc, nelec+1)
 
+    if ras1_min == 0
+        x[:,1] .= 1
+    end
+
+
     if n_unocc == norbs+1
         x[:,1] .=1
         return x
@@ -304,7 +309,11 @@ function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=1, ras3_
     #ras_spaces = (3,3,3)
     
     #RAS1
-    h = ras_spaces[1]-ras1_min
+    if ras1_min == 0
+        h = 1
+    else
+        h = ras_spaces[1]-ras1_min
+    end
     for spot in 1:h
         loc[1] += 1
         update_x!(x, loc)
@@ -325,10 +334,15 @@ function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=1, ras3_
         end
         #update_x!(x, loc) #updates everything at loc and to the right
     end
-    loc[2] += p2
+    #loc[2] += p2
+
 
     #RAS3
     h3 = ras_spaces[3] - ras3_max
+    if h3 == 0
+        h3 = 1
+    end
+
     for spot in 1:h3
         loc[1] += 1
         #check
@@ -337,7 +351,6 @@ function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=1, ras3_
         else
             update_x!(x, loc) #updates everything at loc and to the right
         end
-        #update_x!(x, loc) #updates everything at loc and to the right
     end#=}}}=#
     return x
 end

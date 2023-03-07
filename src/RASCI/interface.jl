@@ -68,16 +68,18 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any, ras1_min=0, ras3_max=ras_
     ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
     na = convert(Int, na)
     nb = convert(Int, nb)
-    if ras_spaces[1] == 0 && ras_spaces[3] == 0
+    #if ras_spaces[1] == 0 && ras_spaces[3] == 0
         #FCI problem
-        dima = calc_ndets(no, na)
-        dimb = calc_ndets(no, nb)
-        xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)[2]
-        xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)[2]
-    else
-        dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
-        dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
-    end
+        #dima = calc_ndets(no, na)
+        #dimb = calc_ndets(no, nb)
+    #    dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
+    #    dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
+    #else
+    #    dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
+    #    dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
+    #end
+    dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
+    dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
     return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_spaces, ras1_min, ras3_max, xalpha, xbeta, false, false, 1, "direct", 1)
 end
 
@@ -183,6 +185,8 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
     # = c(IJ,s)c(KL,t) <J|<I|ab'|K>|L> (-1)
     # = c(IJ,s)c(KL,t) <J|<I|a|K>b'|L> (-1) (-1)^ket_a.ne
     # = c(IJ,s)c(KL,t) <I|a|K><J|b'|L> (-1) (-1)^ket_a.ne
+    
+    nroots = size(v,2)
     bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, ansatz.ras1_min, ansatz.ras3_max)
     
     tbla, tbla_sign = generate_single_index_lookup(bra_ansatz, ansatz, "alpha")
@@ -193,11 +197,13 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
         sgnK = -sgnK
     end
     
-    w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
+    #w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
+    w = zeros(bra_ansatz.dima, bra_ansatz.dimb, nroots)
+    v = reshape(v, ansatz.dima, ansatz.dimb, nroots)
 
     for Kb in 1:size(tblb, 1)
         for Ka in 1:size(tbla, 1)
-            K = Ka + (Kb-1)*ansatz.dima
+            #K = Ka + (Kb-1)*ansatz.dima
             for ai in 1:ansatz.no
                 La = tbla[Ka, ai]
                 La != 0 || continue
@@ -205,11 +211,13 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
                 Lb = tblb[Kb, ai]
                 Lb != 0 || continue
                 Lb_sign = tblb_sign[Kb, ai]
-                L = La + (Lb-1)*bra_ansatz.dima
-                w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
+                #L = La + (Lb-1)*bra_ansatz.dima
+                #w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
+                w[La, Lb, :] .+= sgnK*La_sign*Lb_sign*v[Ka, Kb, :]
             end
         end
     end
+    w = reshape(w, bra_ansatz.dima * bra_ansatz.dimb, nroots)
 
     #only keep the states that aren't zero (that weren't killed by S-)
     wout = zeros(size(w,1),0)
@@ -232,6 +240,8 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
     # = c(IJ,s)c(KL,t) <J|<I|a'b|K>|L>
     # = c(IJ,s)c(KL,t) <J|<I|a'|K>b|L> (-1)^ket_a.ne
     # = c(IJ,s)c(KL,t) <I|a'|K><J|b|L> (-1)^ket_a.ne
+
+    nroots = size(v,2)
     
     if ansatz.na + 1 > ansatz.no
         error(" Can't increase Ms further")
@@ -247,10 +257,12 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
         sgnK = -sgnK
     end
     
-    w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
+    #w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
+    w = zeros(bra_ansatz.dima, bra_ansatz.dimb, nroots)
+    v = reshape(v, ansatz.dima, ansatz.dimb, nroots)
     for Kb in 1:size(tblb, 1)
         for Ka in 1:size(tbla, 1)
-            K = Ka + (Kb-1)*ansatz.dima
+            #K = Ka + (Kb-1)*ansatz.dima
             for ai in 1:ansatz.no
                 La = tbla[Ka, ai]
                 La != 0 || continue
@@ -258,14 +270,16 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
                 Lb = tblb[Kb, ai]
                 Lb != 0 || continue
                 Lb_sign = tblb_sign[Kb, ai]
-                L = La + (Lb-1)*ansatz.dima
-                println("L ", L)
-                println("K ", K)
-                w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
+                #L = La + (Lb-1)*ansatz.dima
+                #println("L ", L)
+                #println("K ", K)
+                w[La, Lb, :] .+= sgnK*La_sign*Lb_sign*v[Ka, Kb, :]
+                #w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
             end
         end
     end
 
+    w = reshape(w, bra_ansatz.dima * bra_ansatz.dimb, nroots)
     #only keep the states that aren't zero (that weren't killed by S-)
     wout = zeros(size(w,1),0)
     for i in 1:size(w,2)

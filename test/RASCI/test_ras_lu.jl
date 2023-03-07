@@ -14,12 +14,12 @@ using JLD2
     a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prob, a_configs, prob.dima)
     b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prob, b_configs, prob.dimb)
 
-    ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.fock, prob.ras1_min, prob.ras3_max)
-    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.fock, prob.ras1_min, prob.ras3_max)
+    ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
+    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
     a, as, aa, aas, c, cs, cc, ccs = ActiveSpaceSolvers.RASCI.fill_lu(prob.no, prob.na, ga)
     a_b, as_b, aa_b, aas_b, c_b, cs_b, cc_b, ccs_b = ActiveSpaceSolvers.RASCI.fill_lu(prob.no,prob.nb,gb)
-    dima = ActiveSpaceSolvers.RASCI.calc_ndets(prob.no, prob.na, prob.fock, prob.ras1_min, prob.ras3_max)
-    dimb = ActiveSpaceSolvers.RASCI.calc_ndets(prob.no, prob.nb, prob.fock, prob.ras1_min, prob.ras3_max)
+    dima = ActiveSpaceSolvers.RASCI.calc_ndets(prob.no, prob.na, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
+    dimb = ActiveSpaceSolvers.RASCI.calc_ndets(prob.no, prob.nb, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
 
     # Alpha
     # p'r'sq = p'qr's if q != r 
@@ -155,8 +155,8 @@ function test_ras_lu(prob::ActiveSpaceSolvers.RASCI.RASCIAnsatz, ga::ActiveSpace
     a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prob, a_configs, dima)
     b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prob, b_configs, dimb)
 
-    #ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.fock, prob.ras1_min, prob.ras3_max)
-    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.fock, prob.ras1_min, prob.ras3_max)
+    #ga = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.na, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
+    gb = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, prob.nb, prob.ras_spaces, prob.ras1_min, prob.ras3_max)
     a, as, aa, aas, c, cs, cc, ccs = ActiveSpaceSolvers.RASCI.fill_lu(prob.no, prob.na, ga)
     a_b, as_b, aa_b, aas_b, c_b, cs_b, cc_b, ccs_b = ActiveSpaceSolvers.RASCI.fill_lu(prob.no,prob.nb,gb)
 
