@@ -37,8 +37,10 @@ struct RASCIAnsatz <: Ansatz
     dimb::Int 
     dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
-    ras1_min::Int       # Minimum number of electrons in RAS1
-    ras3_max::Int       # Max number of electrons in RAS3
+    ras1_min::Int       # Minimum number of electrons in RAS1 (SPIN SPECIFIC)
+    ras3_max::Int       # Max number of electrons in RAS3 (SPIN SPECIFIC)
+    max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
+    max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
     xalpha::Array{Int}
     xbeta::Array{Int}
     converged::Bool
@@ -59,11 +61,11 @@ Constructor
 - `ras1_min`: Minimum number of electrons in RAS1
 - `ras3_max`: Max number of electrons in RAS3
 """
-function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any, ras1_min=0, ras3_max=ras_spaces[3])
+function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; ras1_min=0, ras3_max=ras_spaces[3], max_h=0, max_p=ras_spaces[3])
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
-    ras1_min <= ras_spaces[1] || throw(DimensionMismatch)
-    ras3_max <= ras_spaces[3] || throw(DimensionMismatch)
+    #ras1_min <= ras_spaces[1] || throw(DimensionMismatch)
+    #ras3_max <= ras_spaces[3] || throw(DimensionMismatch)
     sum(ras_spaces) == no || throw(DimensionMismatch)
     ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
     na = convert(Int, na)
@@ -80,11 +82,11 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any, ras1_min=0, ras3_max=ras_
     #end
     dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
     dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
-    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_spaces, ras1_min, ras3_max, xalpha, xbeta, false, false, 1, "direct", 1)
+    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_spaces, ras1_min, ras3_max, max_h, max_p, xalpha, xbeta, false, false, 1, "direct", 1)
 end
 
 function Base.display(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max, p.max_h, p.max_p)
 end
 
 function Base.print(p::RASCIAnsatz)
@@ -101,19 +103,17 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `RASCIAnsatz` object
 """
 function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
-    a_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[1]
-    b_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[2]
-    
-    #fill single excitation lookup tables
-    a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, a_configs, prb.dima)
-    b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, b_configs, prb.dimb)
-    #iters = 0
+    a_categories = ActiveSpaceSolvers.RASCI.make_categories(prb, spin="alpha")
+    b_categories = ActiveSpaceSolvers.RASCI.make_categories(prb, spin="beta")
+
+    iters = 0
     function mymatvec(v)
-        #iters += 1
-        #@printf(" Iter: %4i\n", iters)
+        iters += 1
+        @printf(" Iter: %4i\n", iters)
+        #print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
         #flush(stdout)
-        
+       
         nr = 0
         if length(size(v)) == 1
             nr = 1
@@ -123,9 +123,14 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
         end
         v = reshape(v, prb.dima, prb.dimb, nr)
         
-        sigma1 = ActiveSpaceSolvers.RASCI.compute_sigma_one(b_configs, b_lookup, v, ints, prb)
-        sigma2 = ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb)
-        sigma3 = ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb)
+        sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, a_categories, b_categories, ints, v)
+        sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, a_categories, b_categories, ints, v)
+        #sigma2 = permutedims(sigma1, [2,1,3])
+        #sigma1 = zeros(prb.dima, prb.dimb, size(v,3))
+        #sigma2 = zeros(prb.dima, prb.dimb, size(v,3))
+        #sigma3 = zeros(prb.dima, prb.dimb, size(v,3))
+        sigma3 = ActiveSpaceSolvers.RASCI.slow_sigma_three(prb, a_categories, b_categories, ints, v)
+        #sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, categories, ints, v)
         
         sig = sigma1 + sigma2 + sigma3
         
@@ -136,6 +141,53 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
     end
     return LinearMap(mymatvec, prb.dim, prb.dim, issymmetric=true, ismutating=false, ishermitian=true)
 end
+
+"""
+    LinearMap(ints, prb::RASCIAnsatz)
+
+Get LinearMap with takes a vector and returns action of H on that vector
+
+# Arguments
+- ints: `InCoreInts` object
+- prb:  `RASCIAnsatz` object
+"""
+#function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
+#    a_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[1]
+#    b_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[2]
+#    
+#    #fill single excitation lookup tables
+#    a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, a_configs, prb.dima)
+#    b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, b_configs, prb.dimb)
+#    #iters = 0
+#    function mymatvec(v)
+#        #iters += 1
+#        #@printf(" Iter: %4i\n", iters)
+#        #@printf(" %-50s", "Compute sigma 1: ")
+#        #flush(stdout)
+#        
+#        nr = 0
+#        if length(size(v)) == 1
+#            nr = 1
+#            v = reshape(v,prb.dim, nr)
+#        else 
+#            nr = size(v)[2]
+#        end
+#        v = reshape(v, prb.dima, prb.dimb, nr)
+#        
+#        sigma1 = ActiveSpaceSolvers.RASCI.compute_sigma_one(b_configs, b_lookup, v, ints, prb)
+#        sigma2 = ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb)
+#        #sigma3 = ActiveSpaceSolvers.RASCI.slow_compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb)
+#        sigma3 = ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb)
+#        
+#        sig = sigma1 + sigma2 + sigma3
+#        
+#        v = reshape(v,prb.dim, nr)
+#        sig = reshape(sig, prb.dim, nr)
+#        sig .+= ints.h0*v
+#        return sig
+#    end
+#    return LinearMap(mymatvec, prb.dim, prb.dim, issymmetric=true, ismutating=false, ishermitian=true)
+#end
 
 function ras_calc_ndets(no, nelec, ras_spaces, ras1_min, ras3_max)
     x = ActiveSpaceSolvers.RASCI.make_ras_x(no, nelec, ras_spaces, ras1_min, ras3_max)

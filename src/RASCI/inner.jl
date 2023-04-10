@@ -108,7 +108,7 @@ function compute_ss_terms_full(configs, lookup, dim, norbs, nelecs, ints::InCore
         fill!(F, 0.0)
         config = I[1]
         I_idx = I[2]
-        #orbs = [1:norbs;]
+#orbs = [1:norbs;]
         vir = filter!(x->!(x in config), [1:norbs;])
         
         #single excitation
@@ -190,6 +190,83 @@ function get_gkl(ints::InCoreInts, prob::RASCIAnsatz)
     return gkl
 end
 
+function _ras_ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, allowed::Dict{Int, Vector{Int}}) where {T}
+    nIa     = size(v)[1]
+    n_roots = size(v)[2]
+    nJb     = size(v)[3]
+
+
+    for Jb in 1:nJb
+        if abs(F[Jb]) > 1e-14 
+            @inbounds @simd for si in 1:n_roots
+                #for Kb in allowed
+                for Ia in 1:nIa
+                    if Jb in allowed[Ia]
+                        sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
+                    end
+                end
+            end
+        end
+    end
+end
+
+function restrict_strings(prob::RASCIAnsatz, current::Dict{Vector{Int32}, Int64}; key_spin="alpha")
+    allowed = Dict{Int, Vector{Int}}()
+    if key_spin == "alpha"
+        key_configs = ActiveSpaceSolvers.RASCI.compute_configs(prob)[1]
+    else
+        key_configs = ActiveSpaceSolvers.RASCI.compute_configs(prob)[2]
+    end
+    ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
+    
+    for Ia in key_configs
+        ras1_test = length(findall(in(Ia[1]),ras1))
+        ras3_test = length(findall(in(Ia[1]),ras3))
+        tmp = []
+
+        for Ib in current
+            num_ras1 = length(findall(in(Ib[1]),ras1))
+            num_ras3 = length(findall(in(Ib[1]),ras3))
+            if (num_ras1+ras1_test)>=prob.ras1_min && (num_ras3+ras3_test) <= prob.ras3_max
+                push!(tmp, Ib[2])
+            end
+        end
+        allowed[Ia[2]] = tmp
+    end
+    return allowed
+end
+
+function restrict_opp_spin(prob::RASCIAnsatz, curr_config::Vector{Int32}; opp_spin="alpha")
+    allowed = Vector{Int}()
+    ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
+    
+    ras1_test = length(findall(in(curr_config),ras1))
+    ras3_test = length(findall(in(curr_config),ras3))
+    allowed_ras1 = prob.ras1_min - ras1_test
+    allowed_ras3 = prob.ras3_max - ras3_test
+    
+    if opp_spin == "alpha"
+        opp_configs = ActiveSpaceSolvers.RASCI.compute_configs(prob)[1]
+    else
+        opp_configs = ActiveSpaceSolvers.RASCI.compute_configs(prob)[2]
+    end
+
+    for I in opp_configs
+        config = I[1]
+num_ras1 = length(findall(in(config),ras1))
+        num_ras3 = length(findall(in(config),ras3))
+        if num_ras1 >= allowed_ras1
+            if num_ras3 <= allowed_ras3
+                append!(allowed, I[2])
+            end
+        end
+    end
+
+    return allowed
+end
+
+
+
 """
     compute_sigma_one(b_configs, b_lookup, v, ints::InCoreInts, prob::RASCIAnsatz)
 """
@@ -205,6 +282,8 @@ function compute_sigma_one(b_configs::Dict{Vector{Int32}, Int64}, b_lookup::Arra
     
     sigma_one = permutedims(sigma_one,[1,3,2])
     v = permutedims(v,[1,3,2])
+    
+    allowed = restrict_strings(prob, b_configs, key_spin="alpha")
     
     for I_b in b_configs
         I_idx = I_b[2]
@@ -266,6 +345,11 @@ function compute_sigma_one(b_configs::Dict{Vector{Int32}, Int64}, b_lookup::Arra
         #scr = v*F
         #sigma_one[:, I_idx] .+= scr
         
+        #allowed = restrict_strings(prob, b_configs, spin="alpha")
+        #allowed = restrict_opp_spin(prob, I_config, opp_spin="alpha")
+        #_ras_ss_sum!(sigma_one, v, F, I_idx, allowed)
+
+
         ActiveSpaceSolvers.FCI._ss_sum!(sigma_one, v, F, I_idx)
     end#=}}}=#
     
@@ -289,6 +373,8 @@ function compute_sigma_two(a_configs::Dict{Vector{Int32}, Int64}, a_lookup::Arra
     
     sigma_two = permutedims(sigma_two,[2,3,1])
     v = permutedims(v,[2,3,1])
+    
+    allowed = restrict_strings(prob, a_configs, key_spin="beta")
     
     for I_a in a_configs
         I_idx = I_a[2]
@@ -357,7 +443,7 @@ function compute_sigma_two(a_configs::Dict{Vector{Int32}, Int64}, a_lookup::Arra
 
         #scr = F'*v
         #sigma_two[I_idx,:] .+= scr'
-        
+        #_ras_ss_sum!(sigma_two, v, F, I_idx, allowed)
         ActiveSpaceSolvers.FCI._ss_sum_Ia!(sigma_two, v, F, I_idx)
     
     end#=}}}=#
@@ -368,11 +454,86 @@ function compute_sigma_two(a_configs::Dict{Vector{Int32}, Int64}, a_lookup::Arra
     return sigma_two
 end
 
+function slow_compute_sigma_three(a_configs::Dict{Vector{Int32}, Int64}, b_configs::Dict{Vector{Int32}, Int64}, a_lookup::Array{Int64, 3}, b_lookup::Array{Int64, 3}, v, ints::InCoreInts, prob::RASCIAnsatz)
+    #v = reshape(v, prob.dima, prob.dimb)
+    
+    T = eltype(v[1])
+    n_roots::Int = size(v,3)
+    sigma_three = zeros(Float64, prob.dima, prob.dimb,n_roots)
+    
+    hkl = zeros(Float64, prob.no, prob.no)
+    FJb = zeros(T, prob.dimb)
+    Ckl = Array{T, 3} 
+
+    rev_as = Dict(value => key for (key, value) in a_configs)
+    rev_bs = Dict(value => key for (key, value) in b_configs)
+    ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
+    hkl = zeros(Float64, prob.no, prob.no)
+
+    for Ia in a_configs
+        for k in 1:prob.no,  l in 1:prob.no
+            Ja = a_lookup[k,l,Ia[2]]
+            Ja != 0 || continue
+            sign_kl = sign(Ja)
+            Ja = abs(Ja)
+            a_ras1 = length(findall(in(rev_as[Ja]),ras1))
+            a_ras3 = length(findall(in(rev_as[Ja]),ras3))
+            hkl .= ints.h2[:,:,k,l]
+
+            for Ib in b_configs
+                for i in 1:prob.no, j in 1:prob.no
+                    Jb = b_lookup[i,j,Ib[2]]
+                    Jb != 0 || continue
+                    sign_ij = sign(Jb)
+                    Jb = abs(Jb)
+                    b_ras1 = length(findall(in(rev_bs[Jb]),ras1))
+                    b_ras3 = length(findall(in(rev_bs[Jb]),ras3))
+                    if (a_ras1+b_ras1)>=prob.ras1_min && (a_ras3+b_ras3) <= prob.ras3_max
+                        for si in 1:n_roots
+                            sigma_three[Ia[2], Ib[2], si] += hkl[i,j]*v[Ja, Jb, si]*sign_ij*sign_kl
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return sigma_three
+end
+
+
+
+        #Ckl = zeros(T, length(L), prob.dimb, n_roots)
+        #
+        #
+        ##Gather
+        ##_gather!(Ckl, v, L, sign_I)
+        #_gather!(Ckl, v, L, sign_I, global_allowed_b)
+        #
+        #hkl .= ints.h2[:,:,k,l]
+        #VI = zeros(T, length(L), n_roots)
+
+        ##look over beta configs
+        #for Ib in b_configs
+        #    allowed_a = Vector{Int}()
+        #    @inbounds fill!(FJb, T(0.0))
+        #    #@code_warntype _update_F!(hkl, F, b_lookup, Ib, prob)
+        #    _update_F!(hkl, FJb, b_lookup, Ib[2], prob, allowed_a, b_configs)
+
+        #    #VI = Ckl*FJb
+        #    #@tensor begin
+        #    #    VI[I,s] = Ckl[I,J,s]*FJb[J]
+        #    #end
+        #    _ras_mult!(Ckl, FJb, VI, allowed_a)
+
+        #    #Scatter
+        #    _scatter!(sigma_three, R, VI, Ib[2])
+        #end
+
 """
     compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints::InCoreInts, prob::RASCIAnsatz)
 """
 function compute_sigma_three(a_configs::Dict{Vector{Int32}, Int64}, b_configs::Dict{Vector{Int32}, Int64}, a_lookup::Array{Int64, 3}, b_lookup::Array{Int64, 3}, v, ints::InCoreInts, prob::RASCIAnsatz)
-    #v = reshape(v, prob.dima, prob.dimb)
+    #v = reshape(v, prob.dima, prob.dimb){{{
     
     T = eltype(v[1])
     n_roots::Int = size(v,3)
@@ -413,6 +574,7 @@ function compute_sigma_three(a_configs::Dict{Vector{Int32}, Int64}, b_configs::D
 
         Ckl = zeros(T, length(L), prob.dimb, n_roots)
         
+        
         #Gather
         _gather!(Ckl, v, L, sign_I)
         
@@ -436,7 +598,45 @@ function compute_sigma_three(a_configs::Dict{Vector{Int32}, Int64}, b_configs::D
             _scatter!(sigma_three, R, VI, Ib[2])
         end
     end
-    return sigma_three
+    return sigma_three#=}}}=#
+end
+
+function _ras_mult!(Ckl::Array{T,3}, FJb::Array{T,1}, VI::Array{T,2}, allowed::Vector{Int}) where {T}
+    #={{{=#
+    VI .= 0
+    nI = size(Ckl)[1]
+    n_roots::Int = size(Ckl)[3]
+    ket_max = size(FJb)[1]
+    tmp = 0.0
+    for si in 1:n_roots
+        @views V = VI[:,si]
+        for Jb in 1:ket_max
+            tmp = FJb[Jb]
+            if abs(tmp) > 1e-14
+                @inbounds @simd for I in allowed
+                #@inbounds @simd for I in 1:nI
+                    VI[I,si] += tmp*Ckl[I,Jb,si]
+                end
+                #@views LinearAlgebra.axpy!(tmp, Ckl[:,Jb,si], VI[:,si])
+                #@inbounds VI[:,si] .+= tmp .* Ckl[:,Jb,si]
+                #@inbounds @views @. VI[:,si] += tmp * Ckl[:,Jb,si]
+            end
+        end
+    end
+end
+#=}}}=#
+
+function _gather!(Ckl::Array{T,3}, v, L::Vector{Int}, sign_I::Vector{Int8}, allowed::Vector{Vector{Int}}) where {T}
+    nI = length(L)#={{{=#
+    n_roots = size(v)[3]
+    ket_max = size(v)[2]
+    @inbounds @simd for si in 1:n_roots
+        for Li in 1:nI
+            for Jb in allowed[Li]
+                Ckl[Li,Jb,si] = v[L[Li], Jb,si] * sign_I[Li]
+            end
+        end
+    end#=}}}=#
 end
 
 function _gather!(Ckl::Array{T,3}, v, L::Vector{Int}, sign_I::Vector{Int8}) where {T}
@@ -457,8 +657,9 @@ function _scatter!(sigma_three::Array{T, 3}, R::Vector{Int}, VI::Array{T, 2}, Ib
     n_roots = size(sigma_three)[3]
     
     #what nick uses
-    @inbounds @simd for si in 1:n_roots
-        for Li in 1:length(VI)
+    for si in 1:n_roots
+    #@inbounds @simd for si in 1:n_roots
+        for Li in 1:size(VI,1)
             sigma_three[R[Li], Ib, si] += VI[Li,si]
         end
     end
@@ -470,6 +671,34 @@ function _scatter!(sigma_three::Array{T, 3}, R::Vector{Int}, VI::Array{T, 2}, Ib
     #end}}}
 end
 #end
+
+function _update_F!(hkl::Array{T,2}, FJb::Vector{T}, b_lookup::Array{Int,3}, Ib::Int, prob::RASCIAnsatz, allowed::Vector{Int}, b_configs::Dict{Vector{Int32}, Int64}) where {T}
+    i::Int = 1#={{{=#
+    j::Int = 1
+    Jb::Int = 1
+    sign_ij::T = 1.0
+    for j in 1:prob.no
+        #jkl_idx = j-1 + (k-1)*prob.no + (l-1)*prob.no*prob.no 
+        for i in 1:prob.no
+            #ijkl_idx = (i-1) + jkl_idx*prob.no + 1
+            Jb = b_lookup[i,j,Ib]
+            if Jb == 0
+                continue
+            end
+            
+            sign_ij = sign(Jb)
+            Jb = abs(Jb)
+            
+            for (k,v) in b_configs if v==Jb
+                    allowed = restrict_opp_spin(prob, k, opp_spin="alpha")
+                end
+            end
+            
+
+            @inbounds FJb[Jb] += sign_ij*hkl[i,j]
+        end
+    end#=}}}=#
+end
 
 function _update_F!(hkl::Array{T,2}, FJb::Vector{T}, b_lookup::Array{Int,3}, Ib::Int, prob::RASCIAnsatz) where {T}
     i::Int = 1#={{{=#
@@ -777,6 +1006,132 @@ function apply_annhilation!(config, orb_index, graph::RASCI_OlsenGraph, must_obe
     end
     return sign, new#=}}}=#
 end
+
+"""
+"""
+function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories::Vector{Spin_Categories})
+    spot = first(findall(x->x==a_orb, config))#={{{=#
+    new = Vector(config)
+    splice!(new, spot)
+    
+    sign_a = 1 
+    if spot % 2 != 1
+        sign_a = -1
+    end
+    
+    if c_orb in new
+        return 1, 0, 0
+    end
+
+    insert_here = 1
+    new2 = Vector(new)
+
+    if isempty(new)
+        new2 = [c_orb]
+        sign_c = 1
+    else
+        for i in 1:length(new)
+            if new[i] > c_orb
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new2, insert_here, c_orb)
+        if haskey(config_dict, new2);
+            idx = config_dict[new2]
+        else
+            return 1, 0, 0
+        end
+        cat = find_cat(idx, categories)
+        if cat == 0
+            return 1, 0,0
+        end
+
+        sign_c = 1
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+    end
+
+    return sign_c*sign_a, new2, idx#=}}}=#
+end
+
+
+
+"""
+    apply_annhilation(config, orb_index)
+"""
+function apply_annhilation!(config, orb_index, config_dict, categories::Vector{Spin_Categories}, spin=1)
+    spot = first(findall(x->x==orb_index, config))#={{{=#
+    new = Vector(config)
+    
+    splice!(new, spot)
+    if haskey(config_dict, new)
+        idx = config_dict[new]
+    else
+        return 1, 0, 0
+    end
+
+
+    cat = find_cat(idx, categories, spin)
+    if cat == 0
+        #println("not allowed")
+        return 1, 0, 0
+    end
+
+    sign = 1 
+    if spot % 2 != 1
+        sign = -1
+    end
+    return sign, new, idx#=}}}=#
+end
+
+"""
+    apply_creation(config, orb_index)
+"""
+function apply_creation!(config, orb_index, config_dict, categories::Vector{Spin_Categories})
+    insert_here = 1#={{{=#
+    new = Vector(config)
+
+    if isempty(config)
+        new = [orb_index]
+    end
+    
+    for i in 1:length(config)
+        if config[i] > orb_index
+            insert_here = i
+            break
+        else
+            insert_here += 1
+        end
+    end
+    
+    insert!(new, insert_here, orb_index)
+
+    #det = ActiveSpaceSolvers.FCI.DeterminantString(graph.no,length(new),1,1,new,1)
+    #idx = ActiveSpaceSolvers.FCI.calc_linear_index(det)
+    #if haskey(config_dict, new)
+    #    idx = config_dict[new]
+    #else
+    #    return 1, 0, 0
+    #end
+    #cat = find_cat(idx, categories, spin)
+    #if cat == 0
+    #    return 1, 0,0
+    #end
+    #
+    sign = 1
+    if insert_here % 2 != 1
+        sign = -1
+    end
+    idx = 1
+
+    return sign, new, idx#=}}}=#
+end
+
 
 """
     apply_creation(config, orb_index)

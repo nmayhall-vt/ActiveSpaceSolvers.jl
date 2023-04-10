@@ -16,7 +16,7 @@ function RASCI_OlsenGraph()
     return RASCI_OlsenGraph(1,1,SVector(1,1,1), 1, 1, 1, Array{Int32}(undef, 0, 0), Dict{Int32, Vector{Int32}}(), Dict{Tuple{Int32, Int32}, Int32}())
 end
 
-function RASCI_OlsenGraph(no, ne, spaces, ras1_min=1, ras3_max=2)
+function RASCI_OlsenGraph(no, ne, spaces, ras1_min=0, ras3_max=spaces[3])
     spaces = convert(SVector{3,Int},collect(spaces))
     x = make_ras_x(no, ne, spaces, ras1_min, ras3_max)
     y = make_ras_y(x)
@@ -147,6 +147,71 @@ function dfs_no_operation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, m
     pop!(path)
     visited[start]=false
     return lu, lus#=}}}=#
+end
+
+function dfs_single_excitation!(ket::RASCI_OlsenGraph, start, max, lu, categories, config_dict, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        #det = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(config),1,1,config,1)
+        #index = ActiveSpaceSolvers.FCI.calc_linear_index(det)
+        index = config_dict[config]
+        
+        for orb in config
+            for orb_c in 1:ket.no
+                #if orb_c in config
+                #    continue
+                #end
+                sgn, conf, idx = ActiveSpaceSolvers.RASCI.apply_single_excitation!(config, orb, orb_c, config_dict, categories)
+                if conf == 0
+                    continue
+                end
+                #deta = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(conf),1,1,conf,1)
+                #idxa = ActiveSpaceSolvers.FCI.calc_linear_index(deta)
+                #detc = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(conf_c),1,1,conf_c,1)
+                #idxc = ActiveSpaceSolvers.FCI.calc_linear_index(detc)
+                lu[orb, orb_c, index] = sgn*idx
+            end
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_single_excitation!(ket, i,max, lu, categories, config_dict, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false #=}}}=#
+    #return lu#=}}}=#
+end
+
+function dfs_fill_idxs(ket::RASCI_OlsenGraph, start, max, idxs, config_dict, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        #det = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(config),1,1,config,1)
+        #index = ActiveSpaceSolvers.FCI.calc_linear_index(det)
+        index = config_dict[config]
+        append!(idxs, index)
+        
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_fill_idxs(ket, i,max, idxs, config_dict, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return idxs#=}}}=#
 end
 
 """
@@ -283,75 +348,94 @@ function fill_lu(norb::Int, nelec::Int, g::RASCI_OlsenGraph)
     return a_lu, a_lus, aa_lu, aa_lus, c_lu, c_lus, cc_lu, cc_lus#=}}}=#
 end
 
-function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=1, ras3_max=2)
-    n_unocc = (norbs-nelec)+1#={{{=#
+function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=0, ras3_max=ras_spaces[3])
+    n_unocc = (norbs-nelec)+1
     x = zeros(Int, n_unocc, nelec+1)
+    if ras1_min == 0 && ras3_max==ras_spaces[3]
+        #do fci graph
+        #fill first row and columns
+        if size(x,2) != 0
+            x[:,1] .= 1
+        end
 
-    if ras1_min == 0
-        x[:,1] .= 1
-    end
+        if size(x,1) != 0
+            x[1,:] .= 1
+        end
 
 
-    if n_unocc == norbs+1
-        x[:,1] .=1
+        for i in 2:nelec+1
+            for j in 2:n_unocc
+                x[j, i] = x[j-1, i] + x[j, i-1]
+            end
+        end
         return x
-    end
-
-
-    #meaning if dim of prob  = 1, only one possible config
-    if n_unocc == 1
-        x[1,:].=1
-        return x
-    end
-
-    x[1,:].=1
-    loc = [1,1]
-    #ras_spaces = (3,3,3)
-    
-    #RAS1
-    if ras1_min == 0
-        h = 1
     else
-        h = ras_spaces[1]-ras1_min
-    end
-    for spot in 1:h
-        loc[1] += 1
-        update_x!(x, loc)
-    end
-    p = ras_spaces[1]-h
-    loc[2] += p
-
-    #RAS2
-    p2 = nelec-ras1_min-ras3_max
-    h2 = ras_spaces[2] - p2
-    for spot in 1:h2
-        loc[1] += 1
-        #check
-        if loc[1] > size(x)[1]
-            return x
-        else
-            update_x!(x, loc) #updates everything at loc and to the right
+        if ras1_min == 0
+            x[:,1] .= 1
         end
-        #update_x!(x, loc) #updates everything at loc and to the right
-    end
-    #loc[2] += p2
 
 
-    #RAS3
-    h3 = ras_spaces[3] - ras3_max
-    if h3 == 0
-        h3 = 1
-    end
-
-    for spot in 1:h3
-        loc[1] += 1
-        #check
-        if loc[1] > size(x)[1]
+        if n_unocc == norbs+1
+            x[:,1] .=1
             return x
-        else
-            update_x!(x, loc) #updates everything at loc and to the right
         end
-    end#=}}}=#
+
+
+        #meaning if dim of prob  = 1, only one possible config
+        if n_unocc == 1
+            x[1,:].=1
+            return x
+        end
+
+        x[1,:].=1
+        loc = [1,1]
+        #ras_spaces = (3,3,3)
+
+        #RAS1
+        if ras1_min == 0
+            h = 1
+        else
+            h = ras_spaces[1]-ras1_min
+        end
+        for spot in 1:h
+            loc[1] += 1
+            update_x!(x, loc)
+        end
+        p = ras_spaces[1]-h
+        loc[2] += p
+
+        #RAS2
+        p2 = nelec-ras1_min-ras3_max
+        h2 = ras_spaces[2] - p2
+        for spot in 1:h2
+            loc[1] += 1
+            #check
+            if loc[1] > size(x)[1]
+                return x
+            else
+                update_x!(x, loc) #updates everything at loc and to the right
+            end
+            #update_x!(x, loc) #updates everything at loc and to the right
+        end
+        loc[2] += p2
+
+
+        #RAS3
+        h3 = ras_spaces[3] - ras3_max
+        if h3 == 0
+            h3 = 1
+        end
+
+        for spot in 1:h3
+            loc[1] += 1
+            #check
+            if loc[1] > size(x)[1]
+                return x
+            else
+                update_x!(x, loc) #updates everything at loc and to the right
+            end
+        end#=}}}=#
+    end
     return x
 end
 
@@ -435,7 +519,7 @@ end
 
 function get_index(nelecs, path, weights)
     index = 1 #={{{=#
-    config = Vector{Int8}(zeros(nelecs))
+    config = Vector{Int32}(zeros(nelecs))
     count = 1
 
     for i in 1:length(path)-1
