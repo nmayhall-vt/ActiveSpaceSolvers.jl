@@ -86,7 +86,7 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; ras1_min=0, ras3_max=ras_
 end
 
 function Base.display(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max, p.max_h, p.max_p)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) FCI Dimension: %-3i RAS1 min: %i RAS3 max: %i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max, p.max_h, p.max_p)
 end
 
 function Base.print(p::RASCIAnsatz)
@@ -109,7 +109,7 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
     iters = 0
     function mymatvec(v)
         iters += 1
-        @printf(" Iter: %4i\n", iters)
+        @printf(" Iter: %4i", iters)
         #print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
         #flush(stdout)
@@ -129,7 +129,8 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
         #sigma1 = zeros(prb.dima, prb.dimb, size(v,3))
         #sigma2 = zeros(prb.dima, prb.dimb, size(v,3))
         #sigma3 = zeros(prb.dima, prb.dimb, size(v,3))
-        sigma3 = ActiveSpaceSolvers.RASCI.slow_sigma_three(prb, a_categories, b_categories, ints, v)
+        #sigma3 = ActiveSpaceSolvers.RASCI.slow_sigma_three(prb, a_categories, b_categories, ints, v)
+        sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, a_categories, b_categories, ints, v)
         #sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, categories, ints, v)
         
         sig = sigma1 + sigma2 + sigma3
@@ -215,6 +216,64 @@ Compute the <S^2> expectation values for each state in `sol`
 function ActiveSpaceSolvers.compute_s2(sol::Solution{RASCIAnsatz,T}) where {T}
     return compute_S2_expval(sol.vectors, sol.ansatz)
 end
+
+function calc_ras_dim(prob::RASCIAnsatz)
+    all_cats_a = Vector{Spin_Categories}()
+    all_cats_b = Vector{Spin_Categories}()
+    categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)
+    cats_a = deepcopy(categories)
+    cats_b = deepcopy(categories)
+    fock_list_a, del_at_a = make_fock_from_categories(categories, prob, "alpha")
+    deleteat!(cats_a, del_at_a)
+    len_cat_a = length(cats_a)
+        
+    fock_list_b, del_at_b = make_fock_from_categories(categories, prob, "beta")
+    deleteat!(cats_b, del_at_b)
+    len_cat_b = length(cats_b)
+    
+    #compute alpha configs
+    connected = make_spincategory_connections(cats_a, cats_b, prob)
+    as = compute_config_dict(fock_list_a, prob, "alpha")
+    rev_as = Dict(value => key for (key, value) in as)
+    max_a = length(as)
+
+    for j in 1:len_cat_a
+        idxas = Vector{Int}()
+        graph_a = make_cat_graphs(fock_list_a[j], prob)
+        idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
+        lu = zeros(Int, graph_a.no, graph_a.no, max_a)
+        push!(all_cats_a, Spin_Categories(j, cats_a[j], connected[j], idxas, lu))
+    end
+        
+    
+    #compute beta configs
+    connected_b = make_spincategory_connections(cats_b, cats_a, prob)
+    bs = compute_config_dict(fock_list_b, prob, "beta")
+    rev_bs = Dict(value => key for (key, value) in bs)
+    max_b = length(bs)
+
+    for j in 1:len_cat_b
+        idxbs = Vector{Int}()
+        graph_b = make_cat_graphs(fock_list_b[j], prob)
+        idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
+        lu = zeros(Int, graph_b.no, graph_b.no, max_b)
+        push!(all_cats_b, Spin_Categories(j, cats_b[j], connected_b[j], idxbs, lu))
+    end
+
+    count = 0
+    for Ia in 1:prob.dima
+        cat_Ia = ActiveSpaceSolvers.RASCI.find_cat(Ia, all_cats_a)
+        for m in cat_Ia.connected
+            catb_Ib = all_cats_b[m]
+            for Ib in catb_Ib.idxs
+                count += 1
+            end
+        end
+    end
+    return count
+end
+
+
 
 """
     build_S2_matrix(P::RASCIAnsatz)

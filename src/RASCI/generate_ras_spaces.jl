@@ -458,52 +458,124 @@ function slow_sigma_three(prob::RASCIAnsatz, cats_a::Vector{Spin_Categories}, ca
     combo = []
 
     for Ia in 1:prob.dima
-        cat = find_cat(Ia, cats_a)
+        cat_Ia = find_cat(Ia, cats_a)
         fill!(hkl, T(0.0))
-        count = 0
-        #countsd = 0
-        #println("Ia: ", cat.hp)
-        for catb in cat.connected
-            for Ib in cats_b[catb].idxs
-                countsd+=1
-                for k in 1:prob.no, l in 1:prob.no
-                    Ja = cat.lookup[l,k,Ia]
-                    #Ja = cat.lookup[k,l,Ia]
-                    Ja != 0 || continue
-                    sign_kl = sign(Ja)
-                    Ja = abs(Ja)
-                    hkl .= ints.h2[:,:,k,l]
-                    cat_a = find_cat(Ja, cats_a)
-                    #println("Ja: ", cat_a.hp)
-                    #for Ib in 1:prob.dimb
-                    #catb = find_cat(Ib, cats_b)
-                    #println("Ib: ", catb.hp)
-                    #    if catb.idx in cat.connected
-                    for i in 1:prob.no, j in 1:prob.no
-                        Jb = cats_b[catb].lookup[j,i,Ib]
-                        #Jb = catb.lookup[j,i,Ib]
-                        Jb != 0 || continue
-                        sign_ij = sign(Jb)
-                        Jb = abs(Jb)
-                        #if Jb in cat_a.beta_idxs
-                        final_catb = find_cat(Jb, cats_b)
-                        if final_catb.idx in cat_a.connected
-                            push!(combo, [Ia, Ib, Ja, Jb])
+        comb_kl = 0
+        comb_ij = 0
+        #count = 0
+        for k in 1:prob.no, l in 1:prob.no
+            #Ja = cat_Ia.lookup[k,l,Ia]
+            Ja = cat_Ia.lookup[l,k,Ia]
+            Ja != 0 || continue
+            sign_kl = sign(Ja)
+            Ja = abs(Ja)
+            hkl .= ints.h2[:,:,k,l]
+            cat_Ja = find_cat(Ja, cats_a)
+            #countsd = 0
+            #for b_connected in cat_Ia.connected
+            #   cat_Ib = cats_b[b_connected]
+            #   for Ib in cat_Ib.idxs
+                            #countsd+=1
+            for Ib in 1:prob.dimb
+                cat_Ib = find_cat(Ib, cats_b)
+                for i in 1:prob.no, j in 1:prob.no
+                    #Jb = cat_Ib.lookup[i,j,Ib]
+                    Jb = cat_Ib.lookup[j,i,Ib]
+                    Jb != 0 || continue
+                    sign_ij = sign(Jb)
+                    Jb = abs(Jb)
+                    cat_Jb = find_cat(Jb, cats_b)
+                    #if cat_Ja.idx in cat_Jb.connected
+                    if cat_Ib.idx in cat_Ia.connected
+                        if cat_Jb.idx in cat_Ja.connected
                             count+=1
                             for si in 1:n_roots
                                 sigma_three[Ia, Ib, si] += hkl[i,j]*v[Ja, Jb, si]*sign_ij*sign_kl
                             end
+                            #K = Ia + (Ib-1)*prob.dima
+                            #L = Ja + (Jb-1)*prob.dima
+                            #if K == L
+                            #    for si in 1:n_roots
+                            #        sigma_three[Ia, Ib, si] += hkl[i,j]*v[Ja, Jb, si]*0.5*sign_ij*sign_kl
+                            #    end
+                            #else
+                            #    for si in 1:n_roots
+                            #        sigma_three[Ia, Ib, si] += hkl[i,j]*v[Ja, Jb, si]*sign_ij*sign_kl
+                            #    end
                             #end
                         end
                     end
                 end
             end
-
         end
     end
-    println(countsd)
-    println(count)
+        #end
+    #end
+    #println(countsd)
+    #println(count)
     return sigma_three
+end
+
+
+function sigma_three(prob::RASCIAnsatz, cats_a::Vector{Spin_Categories}, cats_b::Vector{Spin_Categories}, ints::InCoreInts, v)
+    T = eltype(v[1])#={{{=#
+    n_roots::Int = size(v,3)
+    sigma_three = zeros(T, prob.dima, prob.dimb,n_roots)
+    
+    hkl = zeros(T, prob.no, prob.no)
+    FJb = zeros(T, prob.dimb)
+    Ckl = zeros(T, prob.dima, prob.dimb, n_roots)
+    
+    sigma_three = permutedims(sigma_three,[1,3,2])
+    #v = permutedims(v,[1,3,2])
+
+    for k in 1:prob.no, l in 1:prob.no
+        L = Vector{Int}()
+        R = Vector{Int}()
+        sign_I = Vector{Int8}()
+        @inbounds fill!(Ckl, T(0.0))
+        comb_kl = (k-1)*prob.no + l
+        #loop over all alpha configs
+        for I in 1:prob.dima
+            cat_I = find_cat(I, cats_a)
+            Iidx = cat_I.lookup[l,k,I]
+            if Iidx != 0
+                push!(R,I)
+                push!(L,abs(Iidx))
+                push!(sign_I, sign(Iidx))
+            end
+        end
+        
+        #Ckl = zeros(T, length(L), prob.dimb, n_roots)
+        
+        #Gather
+        _gather!(Ckl, v, R, L, sign_I)
+        Ckl = permutedims(Ckl,[1,3,2])
+        #println(size(Ckl))
+        
+        hkl .= ints.h2[:,:,k,l]
+        for Ib in 1:prob.dimb
+            cat_Ib = find_cat(Ib, cats_b)
+            @inbounds fill!(FJb, T(0.0))
+            for i in 1:prob.no, j in 1:prob.no
+                comb_ij = (i-1)*prob.no + j
+                Jb = cat_Ib.lookup[j,i,Ib]
+                Jb != 0 || continue
+                sign_ij = sign(Jb)
+                Jb = abs(Jb)
+                @inbounds FJb[Jb] += sign_ij*hkl[i,j]
+            end
+            _ras_ss_sum_sig3!(sigma_three, Ckl, FJb, Ib, R, cats_a, cats_b)
+            #_ras_ss_sum!(sigma_three, Ckl, FJb, Ib, cats_a, cats_b, sigma="one")
+            #_ras_mult!(sigma_three, Ckl, FJb, Ib, cats_a, cats_b)
+
+            #Scatter
+            #_scatter!(sigma_three, R, VI, Ib)
+        end
+        Ckl = permutedims(Ckl,[1,3,2])
+    end
+    sigma_three = permutedims(sigma_three,[1,3,2])
+    return sigma_three#=}}}=#
 end
 
 function sigma_three(prob::RASCIAnsatz, categories::Vector{Spin_Categories}, ints::InCoreInts, v)
@@ -571,6 +643,29 @@ function sigma_three(prob::RASCIAnsatz, categories::Vector{Spin_Categories}, int
     end
     sigma_three = permutedims(sigma_three,[1,3,2])
     return sigma_three#=}}}=#
+end
+
+function _ras_ss_sum_sig3!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, R::Vector{Int}, cats_a::Vector{Spin_Categories}, cats_b::Vector{Spin_Categories}) where {T}
+    n_roots = size(v)[2]
+    count = 0
+    nIa     = size(R)[1]
+    nJb     = size(v)[3]
+    curr_Ib = find_cat(Ib, cats_b)
+
+    for catb in cats_b    
+        for Ia in R
+            cat_I = find_cat(Ia, cats_a)
+            if cat_I.idx in catb.connected && cat_I.idx in curr_Ib.connected
+                for Jb in catb.idxs
+                    @inbounds @simd for si in 1:n_roots
+                        count+= 1
+                        sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
+                    end
+                end
+            end
+        end
+    end
+    #println("SD Count: ", count, "\n")
 end
 
 function _ras_ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, cats_a::Vector{Spin_Categories}, cats_b::Vector{Spin_Categories}; sigma="one") where {T}
