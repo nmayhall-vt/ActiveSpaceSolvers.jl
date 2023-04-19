@@ -453,66 +453,36 @@ function slow_sigma_three(prob::RASCIAnsatz, cats_a::Vector{Spin_Categories}, ca
     sigma_three = zeros(Float64, prob.dima, prob.dimb,n_roots)
     
     hkl = zeros(Float64, prob.no, prob.no)
-    count = 0
-    countsd = 0
-    combo = []
 
     for Ia in 1:prob.dima
         cat_Ia = find_cat(Ia, cats_a)
         fill!(hkl, T(0.0))
-        comb_kl = 0
-        comb_ij = 0
-        #count = 0
         for k in 1:prob.no, l in 1:prob.no
-            #Ja = cat_Ia.lookup[k,l,Ia]
             Ja = cat_Ia.lookup[l,k,Ia]
             Ja != 0 || continue
             sign_kl = sign(Ja)
             Ja = abs(Ja)
             hkl .= ints.h2[:,:,k,l]
             cat_Ja = find_cat(Ja, cats_a)
-            #countsd = 0
-            #for b_connected in cat_Ia.connected
-            #   cat_Ib = cats_b[b_connected]
-            #   for Ib in cat_Ib.idxs
-                            #countsd+=1
             for Ib in 1:prob.dimb
                 cat_Ib = find_cat(Ib, cats_b)
                 for i in 1:prob.no, j in 1:prob.no
-                    #Jb = cat_Ib.lookup[i,j,Ib]
                     Jb = cat_Ib.lookup[j,i,Ib]
                     Jb != 0 || continue
                     sign_ij = sign(Jb)
                     Jb = abs(Jb)
                     cat_Jb = find_cat(Jb, cats_b)
-                    #if cat_Ja.idx in cat_Jb.connected
                     if cat_Ib.idx in cat_Ia.connected
                         if cat_Jb.idx in cat_Ja.connected
-                            count+=1
                             for si in 1:n_roots
                                 sigma_three[Ia, Ib, si] += hkl[i,j]*v[Ja, Jb, si]*sign_ij*sign_kl
                             end
-                            #K = Ia + (Ib-1)*prob.dima
-                            #L = Ja + (Jb-1)*prob.dima
-                            #if K == L
-                            #    for si in 1:n_roots
-                            #        sigma_three[Ia, Ib, si] += hkl[i,j]*v[Ja, Jb, si]*0.5*sign_ij*sign_kl
-                            #    end
-                            #else
-                            #    for si in 1:n_roots
-                            #        sigma_three[Ia, Ib, si] += hkl[i,j]*v[Ja, Jb, si]*sign_ij*sign_kl
-                            #    end
-                            #end
                         end
                     end
                 end
             end
         end
     end
-        #end
-    #end
-    #println(countsd)
-    #println(count)
     return sigma_three
 end
 
@@ -524,17 +494,14 @@ function sigma_three(prob::RASCIAnsatz, cats_a::Vector{Spin_Categories}, cats_b:
     
     hkl = zeros(T, prob.no, prob.no)
     FJb = zeros(T, prob.dimb)
-    Ckl = zeros(T, prob.dima, prob.dimb, n_roots)
     
     sigma_three = permutedims(sigma_three,[1,3,2])
-    #v = permutedims(v,[1,3,2])
+    v = permutedims(v,[1,3,2])
 
     for k in 1:prob.no, l in 1:prob.no
         L = Vector{Int}()
         R = Vector{Int}()
         sign_I = Vector{Int8}()
-        @inbounds fill!(Ckl, T(0.0))
-        comb_kl = (k-1)*prob.no + l
         #loop over all alpha configs
         for I in 1:prob.dima
             cat_I = find_cat(I, cats_a)
@@ -546,126 +513,52 @@ function sigma_three(prob::RASCIAnsatz, cats_a::Vector{Spin_Categories}, cats_b:
             end
         end
         
-        #Ckl = zeros(T, length(L), prob.dimb, n_roots)
+        Ckl = zeros(T, length(L), n_roots, prob.dimb)
         
         #Gather
         _gather!(Ckl, v, R, L, sign_I)
-        Ckl = permutedims(Ckl,[1,3,2])
-        #println(size(Ckl))
+        VI = zeros(T, length(L), n_roots)
         
         hkl .= ints.h2[:,:,k,l]
         for Ib in 1:prob.dimb
             cat_Ib = find_cat(Ib, cats_b)
             @inbounds fill!(FJb, T(0.0))
+            @inbounds fill!(VI, T(0.0))
             for i in 1:prob.no, j in 1:prob.no
-                comb_ij = (i-1)*prob.no + j
                 Jb = cat_Ib.lookup[j,i,Ib]
                 Jb != 0 || continue
                 sign_ij = sign(Jb)
                 Jb = abs(Jb)
                 @inbounds FJb[Jb] += sign_ij*hkl[i,j]
             end
-            _ras_ss_sum_sig3!(sigma_three, Ckl, FJb, Ib, R, cats_a, cats_b)
-            #_ras_ss_sum!(sigma_three, Ckl, FJb, Ib, cats_a, cats_b, sigma="one")
-            #_ras_mult!(sigma_three, Ckl, FJb, Ib, cats_a, cats_b)
-
+            
+            _ras_ss_sum_sig3!(VI, Ckl, FJb, L, cats_a, cats_b)
             #Scatter
-            #_scatter!(sigma_three, R, VI, Ib)
+            _scatter!(sigma_three, VI, Ib, R, cats_a, cats_b)
         end
-        Ckl = permutedims(Ckl,[1,3,2])
     end
     sigma_three = permutedims(sigma_three,[1,3,2])
     return sigma_three#=}}}=#
 end
 
-function sigma_three(prob::RASCIAnsatz, categories::Vector{Spin_Categories}, ints::InCoreInts, v)
-    T = eltype(v[1])#={{{=#
-    n_roots::Int = size(v,3)
-    sigma_three = zeros(Float64, prob.dima, prob.dimb,n_roots)
+function _ras_ss_sum_sig3!(VI::Array{T,2}, Ckl::Array{T,3}, F::Vector{T}, L::Vector{Int}, cats_a::Vector{Spin_Categories}, cats_b::Vector{Spin_Categories}) where {T}
+    nIa = size(L)[1]
+    n_roots = size(VI)[2]
     
-    hkl = zeros(Float64, prob.no, prob.no)
-    FJb = zeros(T, prob.dimb)
-    #Ckl = Array{T, 3} 
-    Ckl = zeros(T, prob.dima, prob.dimb, n_roots)
-    #Ckl = zeros(T, prob.dima, prob.dimb, n_roots)
-    
-    sigma_three = permutedims(sigma_three,[1,3,2])
-    #v = permutedims(v,[1,3,2])
-
-    for k in 1:prob.no, l in 1:prob.no
-        L = Vector{Int}()
-        R = Vector{Int}()
-        sign_I = Vector{Int8}()
-        cat_list = Vector{Spin_Categories}()
-        @inbounds fill!(Ckl, T(0.0))
-        #loop over all alpha configs in cat
-        for I in 1:prob.dima
-            cat = find_cat(I, categories, 1)
-            Iidx = cat.lookup[1][k,l,I]
-            if Iidx != 0
-                push!(R,I)
-                push!(L,abs(Iidx))
-                push!(sign_I, sign(Iidx))
-                push!(cat_list, cat)
-            end
-        end
-        
-        #Ckl = zeros(T, length(L), prob.dimb, n_roots)
-        
-        #Gather
-        _gather!(Ckl, v, R, L, sign_I)
-        Ckl = permutedims(Ckl,[1,3,2])
-        #println(size(Ckl))
-        
-        hkl .= ints.h2[:,:,k,l]
-#VI = zeros(T, prob.dima, n_roots)
-        #VI = zeros(T, length(L), n_roots)
-        for Ib in 1:prob.dimb
-            cat_b = find_cat(Ib, categories, 2)
-            @inbounds fill!(FJb, T(0.0))
-            for i in 1:prob.no, j in 1:prob.no
-                Jb = cat_b.lookup[2][i,j,Ib]
-                Jb != 0 || continue
-                sign_ij = sign(Jb)
-                Jb = abs(Jb)
-                @inbounds FJb[Jb] += sign_ij*hkl[i,j]
-            end
-
-            #return Ckl, FJb, VI, Ib, cat_list
-
-            _ras_mult!(sigma_three, Ckl, FJb, Ib, cat_list, categories)
-            #_ras_mult!(Ckl, FJb, VI, Ib, cat_list, categories)
-
-            #Scatter
-            #_scatter!(sigma_three, R, VI, Ib)
-        end
-        Ckl = permutedims(Ckl,[1,3,2])
-    end
-    sigma_three = permutedims(sigma_three,[1,3,2])
-    return sigma_three#=}}}=#
-end
-
-function _ras_ss_sum_sig3!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, R::Vector{Int}, cats_a::Vector{Spin_Categories}, cats_b::Vector{Spin_Categories}) where {T}
-    n_roots = size(v)[2]
-    count = 0
-    nIa     = size(R)[1]
-    nJb     = size(v)[3]
-    curr_Ib = find_cat(Ib, cats_b)
-
     for catb in cats_b    
-        for Ia in R
-            cat_I = find_cat(Ia, cats_a)
-            if cat_I.idx in catb.connected && cat_I.idx in curr_Ib.connected
-                for Jb in catb.idxs
-                    @inbounds @simd for si in 1:n_roots
-                        count+= 1
-                        sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
+        for Jb in catb.idxs
+            for Ia in 1:nIa
+                cat_Ia = find_cat(L[Ia], cats_a)
+                if cat_Ia.idx in catb.connected
+                    if abs(F[Jb]) > 1e-14 
+                        @inbounds @simd for si in 1:n_roots
+                            VI[Ia,si] += F[Jb]*Ckl[Ia,si,Jb]
+                        end
                     end
                 end
             end
         end
     end
-    #println("SD Count: ", count, "\n")
 end
 
 function _ras_ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, cats_a::Vector{Spin_Categories}, cats_b::Vector{Spin_Categories}; sigma="one") where {T}
@@ -683,338 +576,240 @@ function _ras_ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, cats
     n_roots = size(v)[2]
     nJb     = size(v)[3]
     if sigma == "one"
-        #current_cat = find_cat(Ib, cats_b)
+        current_cat = find_cat(Ib, cats_b)
         for catb in cats_b    
-            #if abs(F[Jb]) > 1e-14 
             for cats in catb.connected
                 #if cats in current_cat.connected
                 for Ia in cats_a[cats].idxs
                     for Jb in catb.idxs
-                        @inbounds @simd for si in 1:n_roots
-                            #count+= 1
-                            sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
+                        if abs(F[Jb]) > 1e-14 
+                            if cats_a[cats].idx in current_cat.connected
+                                @inbounds @simd for si in 1:n_roots
+                                    #count+= 1
+                                    sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
+                                end
+                            end
                         end
                     end
                 end
-                #end
             end
         end
     else
+        current_cat = find_cat(Ib, cats_a)
         for cata in cats_a    
             #if abs(F[Jb]) > 1e-14 
             for cats in cata.connected
                 for Ia in cats_b[cats].idxs
                     for Jb in cata.idxs
-                        @inbounds @simd for si in 1:n_roots
-                            #count+= 1
-                            sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
+                        if abs(F[Jb]) > 1e-14 
+                            if cats_b[cats].idx in current_cat.connected
+                                @inbounds @simd for si in 1:n_roots
+                                    #count+= 1
+                                    sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
+                                end
+                            end
                         end
                     end
                 end
-                #end
             end
         end
     end
     #println("SD Count: ", count, "\n")
 end
 
-
-function _ras_ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, categories::Vector{Spin_Categories}; sigma="one") where {T}
-    #spin refers to the fack that Ib, and final cat are of spin alpha or beta{{{
-    #Ib, Jb are the active spin
-    #Ia is the idle spin that is vectorized over, these will enforce which Jb are allowed (active spin summations)
-    #nIa     = size(v)[1]
-    n_roots = size(v)[2]
-    #nJb     = size(v)[3]
-    #count = 0
-    
-    if sigma == "one"
-        #alpha
-        for cats in categories
-            #beta
-            for i in cats.connected
-                for Ia in cats.alpha_idxs
-                    for Jb in categories[i].beta_idxs
-                        if Ib in cats[i].beta_idxs
-                            #count+=1
-                            for si in 1:n_roots
-                                sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    
-    else
-        #beta
-        for cats in categories
-            #alpha
-            for i in cats.connected
-                for Ia in cats.beta_idxs #beta even though labeled Ia
-                    for Jb in categories[i].alpha_idxs #alpha even though labeled Jb
-                        if Ib in categories[i].alpha_idxs #current alpha
-                            #count+=1
-                            for si in 1:n_roots
-                                sig[Ia,si,Ib] += F[Jb]*v[Ia,si,Jb]
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    #println(count)}}}
-end
-
 function _gather!(Ckl::Array{T,3}, v, R::Vector{Int}, L::Vector{Int}, sign_I::Vector{Int8}) where {T}
 #function _gather!(Ckl::Array{T,3}, v, R::Vector{Int}, L::Vector{Int}, sign_I::Vector{Int8}, categories::Vector{Spin_Categories}) where {T}
-    nI = length(L)#={{{=#
+    nI = length(L)
     #na = size(v)[1]
-    n_roots = size(v)[3]
-    ket_max = size(v)[2]
+    n_roots = size(v)[2]
+    ket_max = size(v)[3]
     
     @inbounds @simd for si in 1:n_roots
         for Jb in 1:ket_max
             for Li in 1:nI
-                Ckl[R[Li],Jb,si] = v[L[Li], Jb,si] * sign_I[Li]
+                Ckl[Li,si, Jb] = v[L[Li], si, Jb]*sign_I[Li]
             end
         end
     end
-
-
-    #@inbounds @simd for si in 1:n_roots
-    #    for Jb in 1:ket_max
-    #        for Li in 1:nI
-    #            Ckl[Li,Jb,si] = v[L[Li], Jb,si] * sign_I[Li]
-    #        end
-    #    end
-    #end#=}}}=#
 end
 
+function _scatter!(sig::Array{T, 3}, VI::Array{T, 2}, Ib::Int, R::Vector{Int}, cats_a::Vector{Spin_Categories}, cats_b::Vector{Spin_Categories}) where {T}
+    n_roots = size(sig)[2]
 
-function _ras_mult!(sig::Array{T,3}, Ckl::Array{T,3}, FJb::Array{T,1}, Ib::Int, a_cat::Vector{Spin_Categories}, categories::Vector{Spin_Categories}) where {T}
+    curr_cat = find_cat(Ib, cats_b)
 
-#function _ras_mult!(Ckl::Array{T,3}, FJb::Array{T,1}, VI::Array{T,2}, Ib::Int, a_cats::Vector{Int8}, categories::Vector{Spin_Categories}) where {T}
-    
-    #length(a_cats) == size(Ckl,1) || throw(DimensionMismatch)
-    #VI .= 0
-    #nI = size(Ckl)[1]
-    n_roots::Int = size(Ckl)[2]
-    #ket_max = size(FJb)[1]
-    #tmp = 0.0
-    count = 0
-
-    #L = list of alpha configurations
-    #alpha cats
-    #for cats in categories
-    #    #beta
-    #    for i in cats.connected
-    #        for Ia in cats.list_idxs[1]
-    #            for Jb in categories[i].list_idxs[2]
-    #                #count+=1
-    #                #if abs(tmp) > 1e-14
-    #                for si in 1:n_roots
-    #                    #println(size(sig))
-    #                    #println(size(Ckl))
-    #                    sig[Ia, si, Ib] += FJb[Jb]*Ckl[Ia,si,Jb]
-    #                    #sigma_three[Ia, Ib, si] += F[Jb]*Ckl[Ia,Jb,si]
-    #                end
-    #                #end
-    #            end
-    #        end
-    #    end
-    #end
-    
-    #alpha
-    for cats in a_cat
-        #beta
-        for i in cats.connected
-            for Ia in cats.alpha_idxs
-                for Jb in categories[i].beta_idxs
-                    if Ib in categories[i].beta_idxs
-                        #count+=1
-                        #if abs(tmp) > 1e-14
-                        for si in 1:n_roots
-                            #println(size(sig))
-                            #println(size(Ckl))
-                            sig[Ia, si, Ib] += FJb[Jb]*Ckl[Ia,si,Jb]
-                            #sigma_three[Ia, Ib, si] += F[Jb]*Ckl[Ia,Jb,si]
-                        end
-                    end
-                end
+    for si in 1:n_roots
+        for I in 1:length(R)
+            cat_I = find_cat(R[I], cats_a)
+            if cat_I.idx in curr_cat.connected
+                sig[R[I], si, Ib] += VI[I, si]
             end
         end
     end
-    #println(count)
 end
 
 """
     compute_S2_expval(prb::RASCIAnsatz)
 - `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
 """
-function compute_S2_expval(v::Matrix, P::RASCIAnsatz, all_cats::Vector{Spin_Categories})
-    a_categories = ActiveSpaceSolvers.RASCI.make_categories(P, spin="alpha")
-    b_categories = ActiveSpaceSolvers.RASCI.make_categories(P, spin="beta")
+function compute_S2_expval(v::Matrix, P::RASCIAnsatz)
+    categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(P)#={{{=#
+    all_cats_a = Vector{Spin_Categories}()
+    all_cats_b = Vector{Spin_Categories}()
+    
+    cats_a = deepcopy(categories)
+    cats_b = deepcopy(categories)
+    fock_list_a, del_at_a = make_fock_from_categories(categories, P, "alpha")
+    deleteat!(cats_a, del_at_a)
+    len_cat_a = length(cats_a)
+        
+    fock_list_b, del_at_b = make_fock_from_categories(categories, P, "beta")
+    deleteat!(cats_b, del_at_b)
+    len_cat_b = length(cats_b)
 
-    #categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(P)
-    fock_list_a, del_at = make_fock_from_categories(categories, P, "alpha")
-    fock_list_b, del_at = make_fock_from_categories(categories, P, "beta")
-    deleteat!(categories, del_at)
-    len_cat = length(categories)
-    connected = make_category_connections(categories, P)
-    as, bs = compute_config_dict(fock_list_a, fock_list_b, P)
+    #alpha
+    connected_a = make_spincategory_connections(cats_a, cats_b, P)
+
+    #compute configs
+    as = compute_config_dict(fock_list_a, P, "alpha")
     as_old =  ActiveSpaceSolvers.RASCI.compute_configs(P)[1]
-    bs_old = ActiveSpaceSolvers.RASCI.compute_configs(P)[2]
     rev_as = Dict(value => key for (key, value) in as)
-    rev_bs = Dict(value => key for (key, value) in bs)
+    #this reverses the config dictionary to get the index as the key 
     for i in keys(rev_as)
         idx = as_old[i]
         rev_as[i] = idx
     end
-    
+    max_a = length(as)
+
+    for j in 1:len_cat_a
+        idxas = Vector{Int}()
+        graph_a = make_cat_graphs(fock_list_a[j], P)
+        idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
+        lu = zeros(Int, graph_a.no, graph_a.no, max_a)
+        push!(all_cats_a, Spin_Categories(j, cats_a[j], connected_a[j], idxas, lu))
+    end
+
+    #have to do same loop as before bec all categories need initalized for the dfs search for lookup tables
+    for k in 1:len_cat_a
+        graph_a = make_cat_graphs(fock_list_a[k], P)
+        ActiveSpaceSolvers.RASCI.dfs_single_excitation!(graph_a, 1, graph_a.max, all_cats_a[k].lookup, all_cats_a, rev_as)
+    end
+
+    #beta
+    connected_b = make_spincategory_connections(cats_b, cats_a, P)
+    #compute configs
+    bs = compute_config_dict(fock_list_b, P, "beta")
+    bs_old = ActiveSpaceSolvers.RASCI.compute_configs(P)[2]
+    rev_bs = Dict(value => key for (key, value) in bs)
     for i in keys(rev_bs)
         idx = bs_old[i]
         rev_bs[i] = idx
     end
-
-    as = Dict(value => key for (key, value) in rev_as)
-    bs = Dict(value => key for (key, value) in rev_bs)
-    
-    max_a = length(as)
     max_b = length(bs)
 
-    
-    all_cats = Vector{Spin_Categories}()
-    for cat in 1:len_cat
-        x = Spin_Categories(cat, categories[cat], connected[cat])
-        push!(all_cats, x)
-    end
-
-    for i in 1:length(fock_list_a)
-        graph_a = make_cat_graphs(fock_list_a[i], P)
-        idxas = Vector{Int}()
+    for j in 1:len_cat_b
         idxbs = Vector{Int}()
-        idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
-        graph_b = make_cat_graphs(fock_list_b[i], P)
-
-        idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
-        all_cats[i].alpha_idxs = idxas
-        all_cats[i].beta_idxs = idxbs
-    end
-    
-    for j in 1:len_cat
-        graph_a = make_cat_graphs(fock_list_a[j], P)
         graph_b = make_cat_graphs(fock_list_b[j], P)
-        #config_dict = old_dfs(prob.na, graph_a.connect, graph_a.weights, 1, graph_a.max)
-        lua = find_paths_indexes(all_cats, graph_a, max_a, rev_as, 1);
-        lub = find_paths_indexes(all_cats, graph_b, max_b, rev_bs, 2);
-        all_cats[j].lookup = [lua, lub]
+        idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
+        lu = zeros(Int, graph_b.no, graph_b.no, max_b)
+        push!(all_cats_b, Spin_Categories(j, cats_b[j], connected_b[j], idxbs, lu))
     end
 
+    for k in 1:len_cat_b
+        graph_b = make_cat_graphs(fock_list_b[k], P)
+        ActiveSpaceSolvers.RASCI.dfs_single_excitation!(graph_b, 1, graph_b.max, all_cats_b[k].lookup, all_cats_b, rev_bs)
+    end
     
     nr = size(v,2)#={{{=#
     s2 = zeros(nr)
     
-    #a_configs = compute_configs(P)[1]
-    #b_configs = compute_configs(P)[2]
-    
-    #fill single excitation lookup tables
-    #a_lookup = fill_lookup(P, a_configs, P.dima)
-    #b_lookup = fill_lookup(P, b_configs, P.dimb)
-    #beta_graph = RASCI_OlsenGraph(P.no, P.nb+1, P.ras_spaces, P.ras1_min, P.ras3_max)
-    #bra_graph = RASCI_OlsenGraph(P.no, P.nb, P.ras_spaces, P.ras1_min, P.ras3_max)
-    
     #alpha
-    for cats in all_cats
-        #beta
-        for i in cats.connected
-            for Ia in cats.alpha_idxs
-                for Ib in all_cats[i].beta_idxs
-                    K = Ia + (Ib-1)*P.dima
+    for Ia in P.dima
+        for Ib in P.dimb
+            #for cat_Ia in all_cats_a
+            #    #beta
+            #    for cat_Ib in all_cats_b
+            #        if cat_Ib.idx in cat_Ia.connected
+            #            for Ia in cat_Ia.idxs
+            #                for Ib in cat_Ib].idxs
+            K = Ia + (Ib-1)*P.dima
 
-                    #Sz.Sz
-                    for ai in as[Ia]
-                        for aj in as[Ia]
-                            if ai!= aj
+            #Sz.Sz
+            for ai in as[Ia]
+                for aj in as[Ia]
+                    if ai!= aj
+                        for r in 1:nr
+                            s2[r] += 0.25 * v[K,r]*v[K,r]
+                        end
+                    end
+                end
+            end
+
+            for bi in bs[Ib]
+                for bj in bs[Ib]
+                    if bi != bj
+                        for r in 1:nr
+                            s2[r] += 0.25 * v[K,r]*v[K,r]
+                        end
+                    end
+                end
+            end
+
+            for ai in as[Ia]
+                for bj in bs[Ib]
+                    if ai != bj
+                        for r in 1:nr
+                            s2[r] -= .5 * v[K,r]*v[K,r] 
+                        end
+                    end
+                end
+            end
+
+            #Sp.Sm
+            for ai in as[Ia]
+                if ai in bs[Ib]
+                else
+                    for r in 1:nr
+                        s2[r] += .75 * v[K,r]*v[K,r] 
+                    end
+                end
+            end
+
+            #Sm.Sp
+            for bi in bs[Ib]
+                if bi in as[Ia]
+                else
+                    for r in 1:nr
+                        s2[r] += .75 * v[K,r]*v[K,r] 
+                    end
+                end
+            end
+
+            for ai in as[Ia]
+                for bj in bs[Ib]
+                    if ai ∉ bs[Ib]
+                        if bj ∉ as[Ia]
+                            La = cat_Ia.lookup[ai, bj, Ia] 
+                            La != 0 || continue
+                            sign_a = sign(La)
+                            La = abs(La)
+                            cat_La = find_cat(La, all_cats_a)
+
+                            #lookup table annhilates then creates but we need create then annhilate
+                            signb, conf, idx = apply_creation!(bs[Ib], ai, rev_bs)
+                            conf != 0 || continue
+                            sign_b, conf_ann, Lb = apply_annhilation!(conf, bj, rev_bs, all_cats_b)
+                            conf_ann != 0 || continue
+                            sign_b = sign_b*signb
+                            cat_Lb = find_cat(Lb, all_cats_b)
+                            Lb = abs(Lb)
+                            if cat_Lb.idx in cat_La.connected
+                                L = abs(La) + (abs(Lb)-1)*P.dima
                                 for r in 1:nr
-                                    s2[r] += 0.25 * v[K,r]*v[K,r]
+                                    s2[r] += sign_a * sign_b * v[K,r] * v[L,r]
                                 end
                             end
-                        end
-                    end
 
-                    for bi in bs[Ib]
-                        for bj in bs[Ib]
-                            if bi != bj
-                                for r in 1:nr
-                                    s2[r] += 0.25 * v[K,r]*v[K,r]
-                                end
-                            end
-                        end
-                    end
-
-                    for ai in as[Ia]
-                        for bj in bs[Ib]
-                            if ai != bj
-                                for r in 1:nr
-                                    s2[r] -= .5 * v[K,r]*v[K,r] 
-                                end
-                            end
-                        end
-                    end
-
-                    #Sp.Sm
-                    for ai in as[Ia]
-                        if ai in bs[Ib]
-                        else
-                            for r in 1:nr
-                                s2[r] += .75 * v[K,r]*v[K,r] 
-                            end
-                        end
-                    end
-
-                    #Sm.Sp
-                    for bi in bs[Ib]
-                        if bi in as[Ia]
-                        else
-                            for r in 1:nr
-                                s2[r] += .75 * v[K,r]*v[K,r] 
-                            end
-                        end
-                    end
-
-                    for ai in as[Ia]
-                        for bj in bs[Ib]
-                            if ai ∉ bs[Ib]
-                                if bj ∉ as[Ia]
-                                    La = cats.lookup[1][ai, bj, Ia] 
-                                    La != 0 || continue
-                                    sign_a = sign(La)
-                                    La = abs(La)
-                                    cat_a = find_cat(La, all_cats, 1)
-                                    
-
-                                    #lookup table annhilates then creates but we need create then annhilate
-                                    #Lb = b_lookup[bj, ai, Kb[2]]
-                                    #Lb != 0 || continue
-                                    #sign_b = sign(Lb)
-                                    signb, conf, idx = apply_creation!(bs[Ib], ai, rev_bs, all_cats)
-                                    conf != 0 || continue
-                                    sign_b, conf_ann, Lb = apply_annhilation!(conf, bj, rev_bs, all_cats, 2)
-                                    conf_ann != 0 || continue
-                                    sign_b = sign_b*signb
-                                    cat_b = find_cat(Lb, all_cats, 2)
-                                    Lb = abs(Lb)
-                                    if cat_b.idx in cat_a.connected
-                                        L = abs(La) + (abs(Lb)-1)*P.dima
-                                        for r in 1:nr
-                                            s2[r] += sign_a * sign_b * v[K,r] * v[L,r]
-                                        end
-                                    end
-
-                                end
-                            end
                         end
                     end
                 end
