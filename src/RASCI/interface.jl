@@ -125,13 +125,8 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
         
         sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, a_categories, b_categories, ints, v)
         sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, a_categories, b_categories, ints, v)
-        #sigma2 = permutedims(sigma1, [2,1,3])
-        #sigma1 = zeros(prb.dima, prb.dimb, size(v,3))
-        #sigma2 = zeros(prb.dima, prb.dimb, size(v,3))
-        #sigma3 = zeros(prb.dima, prb.dimb, size(v,3))
-        #sigma3 = ActiveSpaceSolvers.RASCI.slow_sigma_three(prb, a_categories, b_categories, ints, v)
-        sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, a_categories, b_categories, ints, v)
-        #sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, categories, ints, v)
+        sigma3 = ActiveSpaceSolvers.RASCI.slow_sigma_three(prb, a_categories, b_categories, ints, v)
+        #sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, a_categories, b_categories, ints, v)
         
         sig = sigma1 + sigma2 + sigma3
         

@@ -1064,7 +1064,7 @@ end
 """
     apply_annhilation(config, orb_index)
 """
-function apply_annhilation!(config, orb_index, config_dict, categories::Vector{Spin_Categories}, spin=1)
+function apply_annhilation!(config, orb_index, config_dict, categories::Vector{Spin_Categories})
     spot = first(findall(x->x==orb_index, config))#={{{=#
     new = Vector(config)
     
@@ -1076,7 +1076,7 @@ function apply_annhilation!(config, orb_index, config_dict, categories::Vector{S
     end
 
 
-    cat = find_cat(idx, categories, spin)
+    cat = find_cat(idx, categories)
     if cat == 0
         #println("not allowed")
         return 1, 0, 0
@@ -1092,37 +1092,25 @@ end
 """
     apply_creation(config, orb_index)
 """
-function apply_creation!(config, orb_index, config_dict, categories::Vector{Spin_Categories})
+function apply_creation!(config, orb_index, config_dict)
     insert_here = 1#={{{=#
     new = Vector(config)
 
     if isempty(config)
         new = [orb_index]
-    end
-    
-    for i in 1:length(config)
-        if config[i] > orb_index
-            insert_here = i
-            break
-        else
-            insert_here += 1
+    else
+        for i in 1:length(config)
+            if config[i] > orb_index
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
         end
+
+        insert!(new, insert_here, orb_index)
     end
     
-    insert!(new, insert_here, orb_index)
-
-    #det = ActiveSpaceSolvers.FCI.DeterminantString(graph.no,length(new),1,1,new,1)
-    #idx = ActiveSpaceSolvers.FCI.calc_linear_index(det)
-    #if haskey(config_dict, new)
-    #    idx = config_dict[new]
-    #else
-    #    return 1, 0, 0
-    #end
-    #cat = find_cat(idx, categories, spin)
-    #if cat == 0
-    #    return 1, 0,0
-    #end
-    #
     sign = 1
     if insert_here % 2 != 1
         sign = -1
