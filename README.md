@@ -26,7 +26,7 @@ subtype, we can then generate our solution, which is a `Solution{P,T}` type.
 ### Solution
 A `Solution{P,T}` is then essentially a set of eigenstates for Ansatz, `P`, of
 datatype `T`. This can then be used for constructed RDMs and operator matrices, 
-as we wish to do in FermiCG.
+as we wish to do in FermiCG. 
 
 ----
 
