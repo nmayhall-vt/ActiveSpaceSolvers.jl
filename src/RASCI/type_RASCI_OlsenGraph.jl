@@ -149,7 +149,7 @@ function dfs_no_operation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, m
     return lu, lus#=}}}=#
 end
 
-function dfs_single_excitation!(ket::RASCI_OlsenGraph, start, max, lu, categories, config_dict, visited=Vector(zeros(max)), path=[])
+function dfs_single_excitation!(ket::RASCI_OlsenGraph, start, max, lu, categories, config_dict, count=1, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
     if start == max
@@ -157,7 +157,9 @@ function dfs_single_excitation!(ket::RASCI_OlsenGraph, start, max, lu, categorie
         index_dontuse, config = get_index(ket.ne, path, ket.weights)
         #det = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(config),1,1,config,1)
         #index = ActiveSpaceSolvers.FCI.calc_linear_index(det)
-        index = config_dict[config]
+        
+        #index = config_dict[config]
+        index = count
         
         for orb in config
             for orb_c in 1:ket.no
@@ -175,10 +177,11 @@ function dfs_single_excitation!(ket::RASCI_OlsenGraph, start, max, lu, categorie
                 lu[orb, orb_c, index] = sgn*idx
             end
         end
+        count += 1
     else
         for i in ket.connect[start]
             if visited[i]==false
-                dfs_single_excitation!(ket, i,max, lu, categories, config_dict, visited, path)
+                dfs_single_excitation!(ket, i,max, lu, categories, config_dict, count, visited, path)
             end
         end
     end
@@ -195,8 +198,6 @@ function dfs_fill_idxs(ket::RASCI_OlsenGraph, start, max, idxs, config_dict, vis
     if start == max
         #get config,index, add to nodes dictonary
         index_dontuse, config = get_index(ket.ne, path, ket.weights)
-        #det = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(config),1,1,config,1)
-        #index = ActiveSpaceSolvers.FCI.calc_linear_index(det)
         index = config_dict[config]
         append!(idxs, index)
         

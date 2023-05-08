@@ -36,6 +36,7 @@ struct RASCIAnsatz <: Ansatz
     dima::Int 
     dimb::Int 
     dim::Int
+    ras_dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     ras1_min::Int       # Minimum number of electrons in RAS1 (SPIN SPECIFIC)
     ras3_max::Int       # Max number of electrons in RAS3 (SPIN SPECIFIC)
@@ -43,11 +44,6 @@ struct RASCIAnsatz <: Ansatz
     max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
     xalpha::Array{Int}
     xbeta::Array{Int}
-    converged::Bool
-    restarted::Bool
-    iteration::Int
-    algorithm::String   #  options: direct/davidson
-    n_roots::Int
 end
 
 """
@@ -61,7 +57,7 @@ Constructor
 - `ras1_min`: Minimum number of electrons in RAS1
 - `ras3_max`: Max number of electrons in RAS3
 """
-function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; ras1_min=0, ras3_max=ras_spaces[3], max_h=0, max_p=ras_spaces[3])
+function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3])
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
     #ras1_min <= ras_spaces[1] || throw(DimensionMismatch)
@@ -70,27 +66,29 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; ras1_min=0, ras3_max=ras_
     ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
     na = convert(Int, na)
     nb = convert(Int, nb)
-    #if ras_spaces[1] == 0 && ras_spaces[3] == 0
-        #FCI problem
-        #dima = calc_ndets(no, na)
-        #dimb = calc_ndets(no, nb)
-    #    dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
-    #    dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
-    #else
-    #    dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
-    #    dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
-    #end
+    if max_h == 2*ras_spaces[1]
+        ras1_min = 0
+    else
+        ras1_min = ras_spaces[1]-max_h
+    end
+    if max_p == 2*ras_spaces[3]
+        ras3_max = ras_spaces[3]
+    else
+        ras3_max = max_p
+    end
     dima, xalpha = ras_calc_ndets(no, na, ras_spaces, ras1_min, ras3_max)
     dimb, xbeta = ras_calc_ndets(no, nb, ras_spaces, ras1_min, ras3_max)
-    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_spaces, ras1_min, ras3_max, max_h, max_p, xalpha, xbeta, false, false, 1, "direct", 1)
+    tmp = RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, 1, ras_spaces, ras1_min, ras3_max, max_h, max_p, xalpha, xbeta)
+    ras_dim = calc_ras_dim(tmp)
+    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, ras1_min, ras3_max, max_h, max_p, xalpha, xbeta)
 end
 
 function Base.display(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) FCI Dimension: %-3i RAS1 min: %i RAS3 max: %i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max, p.max_h, p.max_p)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i FCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.ras_dim, p.dim, p.max_h, p.max_p)
 end
 
 function Base.print(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i RAS1 min: %i RAS3 max: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim,  p.ras1_min, p.ras3_max)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i", p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim)
 end
 
 """
@@ -213,8 +211,8 @@ function ActiveSpaceSolvers.compute_s2(sol::Solution{RASCIAnsatz,T}) where {T}
 end
 
 function calc_ras_dim(prob::RASCIAnsatz)
-    all_cats_a = Vector{Spin_Categories}()
-    all_cats_b = Vector{Spin_Categories}()
+    all_cats_a = Vector{HP_Category}()#={{{=#
+    all_cats_b = Vector{HP_Category}()
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)
     cats_a = deepcopy(categories)
     cats_b = deepcopy(categories)
@@ -237,7 +235,7 @@ function calc_ras_dim(prob::RASCIAnsatz)
         graph_a = make_cat_graphs(fock_list_a[j], prob)
         idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
         lu = zeros(Int, graph_a.no, graph_a.no, max_a)
-        push!(all_cats_a, Spin_Categories(j, cats_a[j], connected[j], idxas, lu))
+        push!(all_cats_a, HP_Category(j, cats_a[j], connected[j], idxas, lu))
     end
         
     
@@ -252,7 +250,7 @@ function calc_ras_dim(prob::RASCIAnsatz)
         graph_b = make_cat_graphs(fock_list_b[j], prob)
         idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
         lu = zeros(Int, graph_b.no, graph_b.no, max_b)
-        push!(all_cats_b, Spin_Categories(j, cats_b[j], connected_b[j], idxbs, lu))
+        push!(all_cats_b, HP_Category(j, cats_b[j], connected_b[j], idxbs, lu))
     end
 
     count = 0
@@ -265,10 +263,8 @@ function calc_ras_dim(prob::RASCIAnsatz)
             end
         end
     end
-    return count
+    return count#=}}}=#
 end
-
-
 
 """
     build_S2_matrix(P::RASCIAnsatz)

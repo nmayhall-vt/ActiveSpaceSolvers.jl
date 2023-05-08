@@ -63,7 +63,8 @@ function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) wh
 
     #e = Vector{T}([])
     #v = Matrix{T}([])
-    if dim(ansatz) <= 20 
+    if dim(ansatz) < 20 
+    #if dim(ansatz) <= 20 
         H = build_H_matrix(ints, ansatz)
         F = eigen(H)
         return Solution{A,T}(ansatz, F.values, F.vectors)
