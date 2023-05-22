@@ -8,6 +8,7 @@ mutable struct HP_Category
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
     lookup::Array{Int, 3} #single spin lookup table for single excitations
+    #fock::Tuple{Int, Int, Int} #Fock sector that this spin pair lives (ras1 elecs, ras2 elecs, ras3 elecs) will help with finding cat after excitation:
 end
 
 function HP_Category()
@@ -52,7 +53,6 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
             idxas = Vector{Int}()
             graph_a = make_cat_graphs(fock_list_a[j], prob)
             idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
-            println(length(idxas))
             lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
             #lu = zeros(Int, graph_a.no, graph_a.no, max_a)
             push!(all_cats, HP_Category(j, cats_a[j], connected[j], idxas, lu))
@@ -61,7 +61,8 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
         #have to do same loop as before bec all categories need initalized for the dfs search for lookup tables
         for k in 1:len_cat_a
             graph_a = make_cat_graphs(fock_list_a[k], prob)
-            ActiveSpaceSolvers.RASCI.dfs_single_excitation!(graph_a, 1, graph_a.max, all_cats[k].lookup, all_cats, rev_as)
+            lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_a, 1, graph_a.max, all_cats[k].lookup, all_cats, rev_as)
+            all_cats[k].lookup .= lu
         end
         return all_cats
 
@@ -81,14 +82,15 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
             idxbs = Vector{Int}()
             graph_b = make_cat_graphs(fock_list_b[j], prob)
             idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
-            lu = zeros(Int, graph_a.no, graph_a.no, length(idxbs))
+            lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
             #lu = zeros(Int, graph_b.no, graph_b.no, max_b)
             push!(all_cats, HP_Category(j, cats_b[j], connected[j], idxbs, lu))
         end
 
         for k in 1:len_cat_b
             graph_b = make_cat_graphs(fock_list_b[k], prob)
-            ActiveSpaceSolvers.RASCI.dfs_single_excitation!(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, rev_bs)
+            lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, rev_bs)
+            all_cats[k].lookup .= lu
         end
         return all_cats
     end#=}}}=#

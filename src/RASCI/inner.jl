@@ -1010,6 +1010,10 @@ end
 """
 """
 function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories::Vector{HP_Category})
+    idx_org = config_dict[config]
+    cat_org = find_cat(idx_org, categories)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+
     spot = first(findall(x->x==a_orb, config))#={{{=#
     new = Vector(config)
     splice!(new, spot)
@@ -1020,7 +1024,7 @@ function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories:
     end
     
     if c_orb in new
-        return 1, 0, 0
+        return 1, 0, 0,0
     end
 
     insert_here = 1
@@ -1043,12 +1047,13 @@ function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories:
         if haskey(config_dict, new2);
             idx = config_dict[new2]
         else
-            return 1, 0, 0
+            return 1, 0, 0,0
         end
         cat = find_cat(idx, categories)
         if cat == 0
-            return 1, 0,0
+            return 1, 0,0,0
         end
+
 
         sign_c = 1
         if insert_here % 2 != 1
@@ -1056,7 +1061,8 @@ function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories:
         end
     end
 
-    return sign_c*sign_a, new2, idx#=}}}=#
+    return sign_c*sign_a, new2, idx_local, idx#=}}}=#
+    #return sign_c*sign_a, new2, idx#=}}}=#
 end
 
 

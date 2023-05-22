@@ -149,47 +149,38 @@ function dfs_no_operation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, m
     return lu, lus#=}}}=#
 end
 
-function dfs_single_excitation!(ket::RASCI_OlsenGraph, start, max, lu, categories, config_dict, count=1, visited=Vector(zeros(max)), path=[])
+function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, categories, config_dict, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
     if start == max
         #get config,index, add to nodes dictonary
         index_dontuse, config = get_index(ket.ne, path, ket.weights)
-        #det = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(config),1,1,config,1)
-        #index = ActiveSpaceSolvers.FCI.calc_linear_index(det)
-        
         #index = config_dict[config]
-        index = count
         
         for orb in config
             for orb_c in 1:ket.no
                 #if orb_c in config
                 #    continue
                 #end
-                sgn, conf, idx = ActiveSpaceSolvers.RASCI.apply_single_excitation!(config, orb, orb_c, config_dict, categories)
+                sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_single_excitation!(config, orb, orb_c, config_dict, categories)
                 if conf == 0
                     continue
                 end
-                #deta = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(conf),1,1,conf,1)
-                #idxa = ActiveSpaceSolvers.FCI.calc_linear_index(deta)
-                #detc = ActiveSpaceSolvers.FCI.DeterminantString(ket.no,length(conf_c),1,1,conf_c,1)
-                #idxc = ActiveSpaceSolvers.FCI.calc_linear_index(detc)
-                lu[orb, orb_c, index] = sgn*idx
+                lu[orb, orb_c, idx_loc] = sgn*idx
             end
         end
-        count += 1
     else
         for i in ket.connect[start]
             if visited[i]==false
-                dfs_single_excitation!(ket, i,max, lu, categories, config_dict, count, visited, path)
+                dfs_single_excitation(ket, i,max, lu, categories, config_dict, visited, path)
             end
         end
     end
 
     #remove current vertex from path and mark as unvisited
     pop!(path)
-    visited[start]=false #=}}}=#
-    #return lu#=}}}=#
+    visited[start]=false
+    return lu#=}}}=#
 end
 
 function dfs_fill_idxs(ket::RASCI_OlsenGraph, start, max, idxs, config_dict, visited=Vector(zeros(max)), path=[])
