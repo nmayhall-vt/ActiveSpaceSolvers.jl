@@ -1010,6 +1010,8 @@ end
 """
 """
 function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories::Vector{HP_Category})
+    #println("Config: ", config)
+    #println(a_orb, " : ", c_orb)
     idx_org = config_dict[config]
     cat_org = find_cat(idx_org, categories)
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
@@ -1033,6 +1035,18 @@ function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories:
     if isempty(new)
         new2 = [c_orb]
         sign_c = 1
+        #println("New config: ", new2)
+        
+        if haskey(config_dict, new2);
+            idx = config_dict[new2]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, categories)
+        if cat == 0
+            return 1, 0,0,0
+        end
+
     else
         for i in 1:length(new)
             if new[i] > c_orb
@@ -1044,6 +1058,8 @@ function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories:
         end
 
         insert!(new2, insert_here, c_orb)
+        #println("New config: ", new2)
+
         if haskey(config_dict, new2);
             idx = config_dict[new2]
         else

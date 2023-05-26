@@ -112,7 +112,7 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
         #print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
         #flush(stdout)
-        display(size(v))
+        #display(size(v))
        
         nr = 0
         if length(size(v)) == 1

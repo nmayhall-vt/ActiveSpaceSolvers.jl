@@ -53,6 +53,7 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
             idxas = Vector{Int}()
             graph_a = make_cat_graphs(fock_list_a[j], prob)
             idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
+            sort!(idxas)
             lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
             #lu = zeros(Int, graph_a.no, graph_a.no, max_a)
             push!(all_cats, HP_Category(j, cats_a[j], connected[j], idxas, lu))
@@ -71,7 +72,7 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
         #compute configs
         bs = compute_config_dict(fock_list_b, prob, "beta")
         rev_bs = Dict(value => key for (key, value) in bs)
-        #bs_old = ActiveSpaceSolvers.RASCI.compute_configs(prob)[2]
+        bs_old = ActiveSpaceSolvers.RASCI.compute_configs(prob)[2]
         #for i in keys(rev_bs)
         #    idx = bs_old[i]
         #    rev_bs[i] = idx
@@ -82,6 +83,7 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
             idxbs = Vector{Int}()
             graph_b = make_cat_graphs(fock_list_b[j], prob)
             idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
+            sort!(idxbs)
             lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
             #lu = zeros(Int, graph_b.no, graph_b.no, max_b)
             push!(all_cats, HP_Category(j, cats_b[j], connected[j], idxbs, lu))

@@ -9,7 +9,6 @@ function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
     F = zeros(Float64, prob.dimb)
     start = 1
     
-
     for m in 1:n_spin_pairs
         sigma_one[m] = zeros(length(cats_a[spin_pairs[m].pair[1]].idxs), length(cats_b[spin_pairs[m].pair[2]].idxs), nroots)
         tmp = C[start:start+spin_pairs[m].dim-1, :]
@@ -85,7 +84,6 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
         start += spin_pairs[m].dim
     end
 
-
     gkl = get_gkl(ints, prob) 
     
     for Ia in 1:prob.dima
@@ -130,12 +128,12 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
         _sum_spin_pairs!(sigma_two, v, F, Ia, cats_a, cats_b, spin_pairs, sigma="two")
     end
 
-    start = 1
+    starti = 1
     sig = zeros(Float64, prob.ras_dim, nroots)
     for m in 1:n_spin_pairs
         tmp = reshape(sigma_two[m], (size(sigma_two[m],1)*size(sigma_two[m],2), nroots))
-        sig[start:start+spin_pairs[m].dim-1, :] .= tmp
-        start += spin_pairs[m].dim
+        sig[starti:starti+spin_pairs[m].dim-1, :] .= tmp
+        starti += spin_pairs[m].dim
     end
     return sig
 end
