@@ -138,6 +138,48 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
 end
 
 """
+    LinOpMat(ints, prb::FCIAnsatz)
+
+Get LinearMap with takes a vector and returns action of H on that vector
+
+# Arguments
+- ints: `InCoreInts` object
+- prb:  `FCIAnsatz` object
+"""
+function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
+    spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(prb)
+
+    iters = 0
+    function mymatvec(v)
+        iters += 1
+        #@printf(" Iter: %4i", iters)
+        #print("Iter: ", iters, " ")
+        #@printf(" %-50s", "Compute sigma 1: ")
+        #flush(stdout)
+        #display(size(v))
+       
+        nr = 0
+        if length(size(v)) == 1
+            nr = 1
+            v = reshape(v,prb.ras_dim, nr)
+        else 
+            nr = size(v)[2]
+        end
+        #v = reshape(v, prb.dima, prb.dimb, nr)
+        
+        sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
+        sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
+        sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
+        
+        sig = sigma1 + sigma2 + sigma3
+        
+        sig .+= ints.h0*v
+        return sig
+    end
+    return LinOpMat{T}(mymatvec, prb.ras_dim, true)
+end
+
+"""
     LinearMap(ints, prb::RASCIAnsatz)
 
 Get LinearMap with takes a vector and returns action of H on that vector
