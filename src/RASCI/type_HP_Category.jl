@@ -2,28 +2,78 @@ using JLD2
 using InCoreIntegrals
 using StaticArrays
 
-mutable struct HP_Category
+abstract type HP_Category end
+
+#the hp probably isnt need i dont use it for anything 
+
+struct HP_Category_CA <: HP_Category
     idx::Int #its index
     hp::Tuple{Int, Int} #(holes, particles)
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
     lookup::Array{Int, 3} #single spin lookup table for single excitations
-    #fock::Tuple{Int, Int, Int} #Fock sector that this spin pair lives (ras1 elecs, ras2 elecs, ras3 elecs) will help with finding cat after excitation:
 end
 
-function HP_Category()
-    return HP_Category(1,(0,0),Vector{Int}(), Vector{Int}(), Vector{Int}(), Array{Int, 3}())
-    #return HP_Category(1,(1,1),Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Array{Int, 3}}())
+struct HP_Category_C <: HP_Category
+    idx::Int #its index
+    hp::Tuple{Int, Int} #(holes, particles)
+    connected::Vector{Int} #list of allowed pairings of other spin categories
+    idxs::Vector{Int}
+    lookup::Array{Int, 2} #single spin lookup table for single excitations
 end
 
-function HP_Category(idx::Int, hp::Tuple{Int,Int}, connected::Vector{Int})
-    return HP_Category(idx, hp, Vector{Int}(), Vector{Int}(), connected, Array{Int, 3}())
+struct HP_Category_A <: HP_Category
+    idx::Int #its index
+    hp::Tuple{Int, Int} #(holes, particles)
+    connected::Vector{Int} #list of allowed pairings of other spin categories
+    idxs::Vector{Int}
+    lookup::Array{Int, 2} #single spin lookup table for single excitations
+end
+
+struct HP_Category_CC <: HP_Category
+    idx::Int #its index
+    hp::Tuple{Int, Int} #(holes, particles)
+    connected::Vector{Int} #list of allowed pairings of other spin categories
+    idxs::Vector{Int}
+    lookup::Array{Int, 3} #single spin lookup table for single excitations
+end
+
+struct HP_Category_CCA <: HP_Category
+    idx::Int #its index
+    hp::Tuple{Int, Int} #(holes, particles)
+    connected::Vector{Int} #list of allowed pairings of other spin categories
+    idxs::Vector{Int}
+    lookup::Array{Int, 4} #single spin lookup table for single excitations
+end
+
+struct HP_Category_CCAA <: HP_Category
+    idx::Int #its index
+    hp::Tuple{Int, Int} #(holes, particles)
+    connected::Vector{Int} #list of allowed pairings of other spin categories
+    idxs::Vector{Int}
+    lookup::Array{Int, 5} #single spin lookup table for single excitations
+end
+
+struct HP_Category_Bra <: HP_Category
+    idx::Int
+    connected::Vector{Int}
+    idxs::Vector{Int}
+end
+
+
+function HP_Category_CA()
+    return HP_Category_CA(1,(0,0),Vector{Int}(), Vector{Int}(), Vector{Int}(), Array{Int, 3}())
+    #return HP_Category_CA(1,(1,1),Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Array{Int, 3}}())
+end
+
+function HP_Category_CA(idx::Int, hp::Tuple{Int,Int}, connected::Vector{Int})
+    return HP_Category_CA(idx, hp, Vector{Int}(), Vector{Int}(), connected, Array{Int, 3}())
 end
 
 
 function make_categories(prob::RASCIAnsatz; spin="alpha")
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)#={{{=#
-    all_cats = Vector{HP_Category}()
+    all_cats = Vector{HP_Category_CA}()
     
     cats_a = deepcopy(categories)
     cats_b = deepcopy(categories)
@@ -56,7 +106,7 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
             sort!(idxas)
             lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
             #lu = zeros(Int, graph_a.no, graph_a.no, max_a)
-            push!(all_cats, HP_Category(j, cats_a[j], connected[j], idxas, lu))
+            push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, lu))
         end
         
         #have to do same loop as before bec all categories need initalized for the dfs search for lookup tables
@@ -86,7 +136,7 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
             sort!(idxbs)
             lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
             #lu = zeros(Int, graph_b.no, graph_b.no, max_b)
-            push!(all_cats, HP_Category(j, cats_b[j], connected[j], idxbs, lu))
+            push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, lu))
         end
 
         for k in 1:len_cat_b
@@ -265,7 +315,8 @@ function make_cat_graphs(fock_list, prob::RASCIAnsatz)
     y = ActiveSpaceSolvers.RASCI.make_ras_y(full)
     vert, max_val = ActiveSpaceSolvers.RASCI.make_vert_graph_ras(full)
     connect, weights = ActiveSpaceSolvers.RASCI.make_graph_dict(y, vert)
-    graph = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, sum(fock_list), prob.ras_spaces, prob.ras1_min, prob.ras3_max, max_val, vert, connect, weights)
+    graph = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, sum(fock_list), prob.ras_spaces, max_val, vert, connect, weights)
+    #graph = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(prob.no, sum(fock_list), prob.ras_spaces, prob.ras1_min, prob.ras3_max, max_val, vert, connect, weights)
     return graph#=}}}=#
 end
 
@@ -285,7 +336,7 @@ function update_x_subgraphs!(x, n_unocc, nelec, shift)
 end
 
 
-function find_cat(idx::Int, categories::Vector{HP_Category})
+function find_cat(idx::Int, categories::Vector{<:HP_Category})
     #this function will find the category that idx belongs to{{{
     for cat in categories
         if idx in cat.idxs
@@ -298,7 +349,7 @@ function find_cat(idx::Int, categories::Vector{HP_Category})
 end
 
 
-function sigma_one(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b::Vector{HP_Category}, ints::InCoreInts, v)
+function sigma_one(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, v)
     T = eltype(v[1])#={{{=#
     n_roots::Int = size(v,3)
     sigma_one = zeros(prob.dima, prob.dimb, n_roots)
@@ -354,7 +405,7 @@ function sigma_one(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b::Vecto
     return sigma_one#=}}}=#
 end
 
-function sigma_two(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b::Vector{HP_Category}, ints::InCoreInts, v)
+function sigma_two(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, v)
     T = eltype(v[1])#={{{=#
     n_roots::Int = size(v,3)
     sigma_two = zeros(prob.dima, prob.dimb, n_roots)
@@ -411,7 +462,7 @@ function sigma_two(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b::Vecto
     return sigma_two#=}}}=#
 end
 
-function slow_sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b::Vector{HP_Category}, ints::InCoreInts, v)
+function slow_sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, v)
     #={{{=#
     T = eltype(v[1])
     n_roots::Int = size(v,3)
@@ -452,7 +503,7 @@ function slow_sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b
 end
 
 
-function sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b::Vector{HP_Category}, ints::InCoreInts, v)
+function sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, v)
     T = eltype(v[1])#={{{=#
     n_roots::Int = size(v,3)
     sigma_three = zeros(T, prob.dima, prob.dimb,n_roots)
@@ -506,7 +557,7 @@ function sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category}, cats_b::Vec
     return sigma_three#=}}}=#
 end
 
-function _ras_ss_sum_sig3!(VI::Array{T,2}, Ckl::Array{T,3}, F::Vector{T}, L::Vector{Int}, cats_a::Vector{HP_Category}, cats_b::Vector{HP_Category}) where {T}
+function _ras_ss_sum_sig3!(VI::Array{T,2}, Ckl::Array{T,3}, F::Vector{T}, L::Vector{Int}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}) where {T}
     nIa = size(L)[1]#={{{=#
     n_roots = size(VI)[2]
     
@@ -526,7 +577,7 @@ function _ras_ss_sum_sig3!(VI::Array{T,2}, Ckl::Array{T,3}, F::Vector{T}, L::Vec
     end
 end#=}}}=#
 
-function _ras_ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, cats_a::Vector{HP_Category}, cats_b::Vector{HP_Category}; sigma="one") where {T}
+function _ras_ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ib::Int, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}; sigma="one") where {T}
     n_roots = size(v)[2]#={{{=#
     count = 0
     
@@ -584,7 +635,7 @@ function _gather!(Ckl::Array{T,3}, v, R::Vector{Int}, L::Vector{Int}, sign_I::Ve
     end
 end#=}}}=#
 
-function _scatter!(sig::Array{T, 3}, VI::Array{T, 2}, Ib::Int, R::Vector{Int}, cats_a::Vector{HP_Category}, cats_b::Vector{HP_Category}) where {T}
+function _scatter!(sig::Array{T, 3}, VI::Array{T, 2}, Ib::Int, R::Vector{Int}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}) where {T}
     n_roots = size(sig)[2]#={{{=#
 
     curr_cat = find_cat(Ib, cats_b)
@@ -601,8 +652,8 @@ end#=}}}=#
 
 function S2_helper(P::RASCIAnsatz)
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(P)#={{{=#
-    all_cats_a = Vector{HP_Category}()
-    all_cats_b = Vector{HP_Category}()
+    all_cats_a = Vector{HP_Category_CA}()
+    all_cats_b = Vector{HP_Category_CA}()
     
     cats_a = deepcopy(categories)
     cats_b = deepcopy(categories)
@@ -633,7 +684,7 @@ function S2_helper(P::RASCIAnsatz)
         graph_a = make_cat_graphs(fock_list_a[j], P)
         idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
         lu = zeros(Int, graph_a.no, graph_a.no, max_a)
-        push!(all_cats_a, HP_Category(j, cats_a[j], connected_a[j], idxas, lu))
+        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected_a[j], idxas, lu))
     end
 
     #have to do same loop as before bec all categories need initalized for the dfs search for lookup tables
@@ -659,7 +710,7 @@ function S2_helper(P::RASCIAnsatz)
         graph_b = make_cat_graphs(fock_list_b[j], P)
         idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
         lu = zeros(Int, graph_b.no, graph_b.no, max_b)
-        push!(all_cats_b, HP_Category(j, cats_b[j], connected_b[j], idxbs, lu))
+        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs, lu))
     end
 
     for k in 1:len_cat_b

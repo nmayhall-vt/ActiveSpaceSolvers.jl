@@ -35,6 +35,29 @@ function make_spin_pairs(prob::RASCIAnsatz)
     return spin_pairs, a_categories, b_categories
 end
 
+function make_spin_pairs(prob::RASCIAnsatz, a_categories::Vector{<:HP_Category}, b_categories::Vector{<:HP_Category})
+    spin_pairs = Vector{Spin_Pair}()
+    ashift = 0
+    for i in 1:length(a_categories)
+        dima = length(a_categories[i].idxs)
+        for j in a_categories[i].connected 
+            bshift = 0
+            if j >= 2
+                for m in 1:j-1
+                    bshift += length(b_categories[m].idxs)
+                end
+            end
+
+
+            dimb = length(b_categories[j].idxs)
+            x = Spin_Pair((i, j), ashift, bshift, dima*dimb)
+            push!(spin_pairs, x)
+        end
+        ashift += dima
+    end
+    return spin_pairs
+end
+
 function find_spin_pair(spin_pairs::Vector{Spin_Pair}, current::Tuple{Int,Int})
     for i in 1:length(spin_pairs)
         if spin_pairs[i].pair == current 

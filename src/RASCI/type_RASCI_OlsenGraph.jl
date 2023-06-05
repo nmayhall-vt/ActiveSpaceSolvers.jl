@@ -4,8 +4,8 @@ struct RASCI_OlsenGraph
     no::Int
     ne::Int
     spaces::SVector{3,Int}
-    ras1_min::Int
-    ras3_max::Int
+    #ras1_min::Int
+    #ras3_max::Int
     max::Int
     vert::Array{Int32}
     connect::Dict{Int32, Vector{Int32}}
@@ -173,6 +173,190 @@ function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, categories
         for i in ket.connect[start]
             if visited[i]==false
                 dfs_single_excitation(ket, i,max, lu, categories, config_dict, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return lu#=}}}=#
+end
+
+function dfs_a(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        #index = config_dict[config]
+        
+        for orb_c in config
+            sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_a(config, orb_c, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
+            if conf == 0
+                continue
+            end
+            lu[orb_c, idx_loc] = sgn*idx
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_a(ket, i,max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return lu#=}}}=#
+end
+
+function dfs_c(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        #index = config_dict[config]
+        
+        for orb_c in 1:ket.no
+            if orb_c in config
+                continue
+            end
+            sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_c(config, orb_c, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
+            if conf == 0
+                continue
+            end
+            lu[orb_c, idx_loc] = sgn*idx
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_c(ket, i,max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return lu#=}}}=#
+end
+
+function dfs_cc(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        #index = config_dict[config]
+        
+        for orb_c in 1:ket.no
+            if orb_c in config
+                continue
+            end
+            for orb_cc in 1:ket.no
+                if orb_cc in config && orb_cc == orb_c
+                    continue
+                end
+                sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_cc(config, orb_c, orb_cc, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
+                if conf == 0
+                    continue
+                end
+                lu[orb_c, orb_cc, idx_loc] = sgn*idx
+            end
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_cc(ket, i,max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return lu#=}}}=#
+end
+
+function dfs_cca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        #index = config_dict[config]
+
+        for orb_a in config
+            for orb_c in 1:ket.no
+                #orb_c and orb_a can be the same for diagonal
+                #if orb_c in config
+                #    continue
+                #end
+                for orb_cc in 1:ket.no
+                    if orb_cc in config && orb_cc == orb_c
+                        continue
+                    end
+                    sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_cca(config, orb_a, orb_c, orb_cc, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
+                    if conf == 0
+                        continue
+                    end
+                    lu[orb_a, orb_c, orb_cc, idx_loc] = sgn*idx
+                end
+            end
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_cca(ket, i,max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return lu#=}}}=#
+end
+
+function dfs_ccaa(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        #index = config_dict[config]
+
+        for orb_a in config
+            for orb_aa in config
+                if orb_aa != orb_a
+                    for orb_c in 1:ket.no
+                        #orb_c and orb_a can be the same for diagonal
+                        #if orb_c in config
+                        #    continue
+                        #end
+                        for orb_cc in 1:ket.no
+                            #if orb_cc in config && orb_cc == orb_c
+                            #    continue
+                            #end
+                            if orb_cc != orb_c
+                                sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_ccaa(config, orb_a, orb_aa, orb_c, orb_cc, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
+                                if conf == 0
+                                    continue
+                                end
+                                lu[orb_a, orb_aa, orb_c, orb_cc, idx_loc] = sgn*idx
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_ccaa(ket, i,max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited, path)
             end
         end
     end
