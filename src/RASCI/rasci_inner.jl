@@ -310,7 +310,8 @@ end
 function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="beta", type="ccaa")
-    #need to make spin_pairs for ccaa!!!!
+    spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob, cats_a, cats_b)
+    spin_pairs_bra = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob, cats_a_bra, cats_b_bra)
 
     spin_pairs_ca, cats_a_ca, cats_b_ca = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)
 
@@ -334,18 +335,70 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
         for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-spin_pairs[m].ashift
             for p in 1:prob.no, q in 1:prob.no, r in 1:prob.no, s in 1:prob.no
-                Ja = cat_Ia.lookup[p,q,r,s,Ia_local]
+                #lookup[a,aa,c,cc,idx]
+                Ja = cat_Ia.lookup[q,s,r,p,Ia_local]
                 Ja != 0 || continue
                 sign_kl = sign(Ja)
                 Ja = abs(Ja)
-                cata_kl = find_cat(Ja, cats_a)
-                n = find_spin_pair(spin_pairs, (cata_kl.idx, spin_pairs[m].pair[2]))
+                cata_kl = find_cat(Ja, cats_a_bra)
+                n = find_spin_pair(spin_pairs_bra, (cata_kl.idx, spin_pairs[m].pair[2]))
                 n != 0 || continue
                 Ja_local = Ja-spin_pairs[n].ashift
                 rdm2aa[p,q,r,s] += sign_kl*dot(v[n][Ja_local,:], v[m][Ia_local,:])
             end
         end
     end
+    
+    ## beta beta p'r'sq
+    for m in 1:length(spin_pairs)
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        for Ib in cats_b[spin_pairs[m].pair[2]].idxs
+            Ib_local = Ib-spin_pairs[m].bshift
+            for p in 1:prob.no, q in 1:prob.no, r in 1:prob.no, s in 1:prob.no
+                Jb = cat_Ib.lookup[q,s,r,p,Ib_local]
+                Jb != 0 || continue
+                sign_kl = sign(Jb)
+                Jb = abs(Jb)
+                catb_kl = find_cat(Jb, cats_b_bra)
+                n = find_spin_pair(spin_pairs_bra, (spin_pairs[m].pair[1], catb_kl.idx))
+                n != 0 || continue
+                Jb_local = Jb-spin_pairs[n].bshift
+                rdm2bb[p,q,r,s] += sign_kl*dot(v[n][:, Jb_local], v[m][:, Ib_local])
+            end
+        end
+    end
+
+    #alpha beta  p'r'sq
+    for m in 1:length(spin_pairs_ca)
+        cat_Ia = cats_a_ca[spin_pairs_ca[m].pair[1]]
+        cat_Ib = cats_b_ca[spin_pairs_ca[m].pair[2]]
+        for Ia in cats_a_ca[spin_pairs_ca[m].pair[1]].idxs
+            Ia_local = Ia-spin_pairs_ca[m].ashift
+            for q in 1:prob.no, p in 1:prob.no
+                Ja = cat_Ia.lookup[q,p,Ia_local]
+                Ja != 0 || continue
+                sign_pq = sign(Ja)
+                Ja = abs(Ja)
+                cata_pq = find_cat(Ja, cats_a_ca)
+                for Ib in cats_b_ca[spin_pairs[m].pair[2]].idxs
+                    Ib_local = Ib-spin_pairs[m].bshift
+                    for s in 1:prob.no, r in 1:prob.no
+                        Jb = cat_Ib.lookup[s,r,Ib_local]
+                        Jb != 0 || continue
+                        sign_rs = sign(Jb)
+                        Jb = abs(Jb)
+                        catb_sr = find_cat(Jb, cats_b_ca)
+                        n = find_spin_pair(spin_pairs_ca, (cata_pq.idx, catb_sr.idx))
+                        n != 0 || continue
+                        Ja_local = Ja-spin_pairs_ca[n].ashift
+                        Jb_local = Jb-spin_pairs_ca[n].bshift
+                        rdm2ab[p,q,r,s] += sign_pq*sign_rs*v[n][Ja_local, Jb_local]*v[m][Ia_local, Ib_local]
+                    end
+                end
+            end
+        end
+    end
+    return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab
 end
 
 function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
@@ -386,6 +439,26 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
         rev_as_bra = Dict(value => key for (key, value) in as_bra)
         max_a_bra = length(as_bra)
 
+        if type == "no_op"
+            for j in 1:len_cat_a
+                idxas = Vector{Int}()
+                graph_a = make_cat_graphs(fock_list_a[j], ket)
+                idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
+                sort!(idxas)
+                push!(all_cats, HP_Category_Bra(j, connected[j], idxas))
+            end
+            
+            for m in 1:length(cats_a_bra)
+                idxas_bra = Vector{Int}()
+                graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
+                idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
+                sort!(idxas_bra)
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+            end
+            return all_cats_bra, all_cats        
+        end
+            
+
         if type == "c"
             #HP_Category_C
             for j in 1:len_cat_a
@@ -424,7 +497,6 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 lu = zeros(Int, graph_a.no,length(idxas))
                 push!(all_cats, HP_Category_A(j, cats_a[j], connected[j], idxas, lu))
             end
-
             
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
@@ -454,10 +526,6 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, lu))
             end
 
-            #for k in 1:len_cat_a
-            #    graph_a = make_cat_graphs(fock_list_a[k], ket)
-            #    lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_a, 1, graph_a.max, all_cats[k].lookup, all_cats, rev_as)
-            #end
             
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
@@ -466,6 +534,12 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 sort!(idxas_bra)
                 push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
             end
+            
+            for k in 1:len_cat_a
+                graph_a = make_cat_graphs(fock_list_a[k], ket)
+                lu = ActiveSpaceSolvers.RASCI.dfs_ca(graph_a, 1, graph_a.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_as, rev_as_bra)
+            end
+
             return all_cats_bra, all_cats        
         end
 
@@ -572,6 +646,26 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
         rev_bs_bra = Dict(value => key for (key, value) in bs_bra)
         max_b_bra = length(bs_bra)
         
+        if type == "no_op"
+            for j in 1:len_cat_b
+                idxbs = Vector{Int}()
+                graph_b = make_cat_graphs(fock_list_b[j], ket)
+                idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
+                sort!(idxbs)
+                push!(all_cats, HP_Category_Bra(j, connected[j], idxbs))
+            end
+            
+            for m in 1:length(cats_b_bra)
+                idxbs_bra = Vector{Int}()
+                graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
+                idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
+                sort!(idxbs_bra)
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+            end
+            return all_cats_bra, all_cats        
+        end
+
+        
         if type == "c"
             #HP_Category_C
             for j in 1:len_cat_b
@@ -593,7 +687,7 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
             
             for k in 1:len_cat_b
                 graph_b = make_cat_graphs(fock_list_b[k], ket)
-                lu = ActiveSpaceSolvers.RASCI.dfs_c(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_as, rev_as_bra)
+                lu = ActiveSpaceSolvers.RASCI.dfs_c(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_bs, rev_bs_bra)
             end
 
             return all_cats_bra, all_cats        
@@ -610,16 +704,17 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 push!(all_cats, HP_Category_A(j, cats_b[j], connected[j], idxbs, lu))
             end
 
-            #for k in 1:len_cat_b
-            #    graph_b = make_cat_graphs(fock_list_b[k], ket)
-            #    lu = ActiveSpaceSolvers.RASCI.dfs_a(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, rev_as)
-            #end
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
                 push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+            end
+            
+            for k in 1:len_cat_b
+                graph_b = make_cat_graphs(fock_list_b[k], ket)
+                lu = ActiveSpaceSolvers.RASCI.dfs_a(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_bs, rev_bs_bra)
             end
             return all_cats_bra, all_cats        
         end
@@ -635,17 +730,17 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, lu))
             end
 
-            #for k in 1:len_cat_b
-            #    graph_b = make_cat_graphs(fock_list_b[k], ket)
-            #    lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, rev_as)
-            #end
-            #
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
                 push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+            end
+            
+            for k in 1:len_cat_b
+                graph_b = make_cat_graphs(fock_list_b[k], ket)
+                lu = ActiveSpaceSolvers.RASCI.dfs_ca(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_bs, rev_bs_bra)
             end
             return all_cats_bra, all_cats        
         end
@@ -661,16 +756,17 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 push!(all_cats, HP_Category_CC(j, cats_b[j], connected[j], idxbs, lu))
             end
 
-            #for k in 1:len_cat_b
-            #    graph_b = make_cat_graphs(fock_list_b[k], ket)
-            #    lu = ActiveSpaceSolvers.RASCI.dfs_cc(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, rev_as)
-            #end
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
                 push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+            end
+            
+            for k in 1:len_cat_b
+                graph_b = make_cat_graphs(fock_list_b[k], ket)
+                lu = ActiveSpaceSolvers.RASCI.dfs_cc(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_bs, rev_bs_bra)
             end
             return all_cats_bra, all_cats        
         end
@@ -686,16 +782,17 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 push!(all_cats, HP_Category_CCA(j, cats_b[j], connected[j], idxbs, lu))
             end
 
-            #for k in 1:len_cat_b
-            #    graph_b = make_cat_graphs(fock_list_b[k], ket)
-            #    lu = ActiveSpaceSolvers.RASCI.dfs_cca(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_bs, rev_bs_bra)
-            #end
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
                 push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+            end
+            
+            for k in 1:len_cat_b
+                graph_b = make_cat_graphs(fock_list_b[k], ket)
+                lu = ActiveSpaceSolvers.RASCI.dfs_cca(graph_b, 1, graph_b.max, all_cats[k].lookup, all_cats, all_cats_bra, rev_bs, rev_bs_bra)
             end
             return all_cats_bra, all_cats        
         end

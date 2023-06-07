@@ -1269,6 +1269,73 @@ function apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector
     return sign_c, new, idx_local, idx#=}}}=#
 end
 
+function apply_ca(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+    idx_org = config_dict_ket[config]
+    cat_org = find_cat(idx_org, cats_ket)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+    
+    spot = first(findall(x->x==orb, config))
+    new = Vector(config)
+    splice!(new, spot)
+    
+    sign_a = 1 
+    if spot % 2 != 1
+        sign_a = -1
+    end
+    
+    if orb2 in new
+        return 1, 0, 0,0
+    end
+
+    insert_here = 1
+    new2 = Vector(new)
+    sign_c = 1
+    
+    if isempty(new)
+        new2 = [orb2]
+        
+        if haskey(config_dict_bra, new2);
+            idx = config_dict_bra[new2]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, cats_bra)
+        if cat == 0
+            return 1, 0,0,0
+        end
+
+    else
+        for i in 1:length(new)
+            if new[i] > orb2
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new2, insert_here, orb2)
+
+        sign_c = 1
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+
+        if haskey(config_dict_bra, new2);
+            idx = config_dict_bra[new2]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, cats_bra)
+        if cat == 0
+            return 1, 0,0,0
+        end
+    end
+
+    return sign_a*sign_c, new2, idx_local, idx#=}}}=#
+end
+
+
 function apply_cc(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
     idx_org = config_dict_ket[config]
     cat_org = find_cat(idx_org, cats_ket)

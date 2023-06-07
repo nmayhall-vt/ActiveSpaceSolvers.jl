@@ -48,7 +48,6 @@ function make_spin_pairs(prob::RASCIAnsatz, a_categories::Vector{<:HP_Category},
                 end
             end
 
-
             dimb = length(b_categories[j].idxs)
             x = Spin_Pair((i, j), ashift, bshift, dima*dimb)
             push!(spin_pairs, x)

@@ -122,7 +122,7 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
         #compute configs
         bs = compute_config_dict(fock_list_b, prob, "beta")
         rev_bs = Dict(value => key for (key, value) in bs)
-        bs_old = ActiveSpaceSolvers.RASCI.compute_configs(prob)[2]
+        #bs_old = ActiveSpaceSolvers.RASCI.compute_configs(prob)[2]
         #for i in keys(rev_bs)
         #    idx = bs_old[i]
         #    rev_bs[i] = idx

@@ -191,12 +191,12 @@ function dfs_a(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories
         index_dontuse, config = get_index(ket.ne, path, ket.weights)
         #index = config_dict[config]
         
-        for orb_c in config
-            sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_a(config, orb_c, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
+        for orb in config
+            sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_a(config, orb, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
             if conf == 0
                 continue
             end
-            lu[orb_c, idx_loc] = sgn*idx
+            lu[orb, idx_loc] = sgn*idx
         end
     else
         for i in ket.connect[start]
@@ -234,6 +234,35 @@ function dfs_c(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories
         for i in ket.connect[start]
             if visited[i]==false
                 dfs_c(ket, i,max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited, path)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return lu#=}}}=#
+end
+
+function dfs_ca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        index_dontuse, config = get_index(ket.ne, path, ket.weights)
+        
+        for orb in config
+            for orb_c in 1:ket.no
+                sgn, conf, idx_loc, idx = ActiveSpaceSolvers.RASCI.apply_ca(config, orb, orb_c, config_dict_ket, config_dict_bra, categories_ket, categories_bra)
+                if conf == 0
+                    continue
+                end
+                lu[orb, orb_c, idx_loc] = sgn*idx
+            end
+        end
+    else
+        for i in ket.connect[start]
+            if visited[i]==false
+                dfs_ca(ket, i,max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited, path)
             end
         end
     end
