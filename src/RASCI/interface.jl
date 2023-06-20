@@ -165,53 +165,6 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
     return LinOpMat{T}(mymatvec, prb.ras_dim, true)
 end
 
-"""
-    LinearMap(ints, prb::RASCIAnsatz)
-
-Get LinearMap with takes a vector and returns action of H on that vector
-
-# Arguments
-- ints: `InCoreInts` object
-- prb:  `RASCIAnsatz` object
-"""
-#function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
-#    a_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[1]
-#    b_configs = ActiveSpaceSolvers.RASCI.compute_configs(prb)[2]
-#    
-#    #fill single excitation lookup tables
-#    a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, a_configs, prb.dima)
-#    b_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prb, b_configs, prb.dimb)
-#    #iters = 0
-#    function mymatvec(v)
-#        #iters += 1
-#        #@printf(" Iter: %4i\n", iters)
-#        #@printf(" %-50s", "Compute sigma 1: ")
-#        #flush(stdout)
-#        
-#        nr = 0
-#        if length(size(v)) == 1
-#            nr = 1
-#            v = reshape(v,prb.dim, nr)
-#        else 
-#            nr = size(v)[2]
-#        end
-#        v = reshape(v, prb.dima, prb.dimb, nr)
-#        
-#        sigma1 = ActiveSpaceSolvers.RASCI.compute_sigma_one(b_configs, b_lookup, v, ints, prb)
-#        sigma2 = ActiveSpaceSolvers.RASCI.compute_sigma_two(a_configs, a_lookup, v, ints, prb)
-#        #sigma3 = ActiveSpaceSolvers.RASCI.slow_compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb)
-#        sigma3 = ActiveSpaceSolvers.RASCI.compute_sigma_three(a_configs, b_configs, a_lookup, b_lookup, v, ints, prb)
-#        
-#        sig = sigma1 + sigma2 + sigma3
-#        
-#        v = reshape(v,prb.dim, nr)
-#        sig = reshape(sig, prb.dim, nr)
-#        sig .+= ints.h0*v
-#        return sig
-#    end
-#    return LinearMap(mymatvec, prb.dim, prb.dim, issymmetric=true, ismutating=false, ishermitian=true)
-#end
-
 function ras_calc_ndets(no, nelec, ras_spaces, ras1_min, ras3_max)
     x = ActiveSpaceSolvers.RASCI.make_ras_x(no, nelec, ras_spaces, ras1_min, ras3_max)
     dim_x = findmax(x)[1]
@@ -263,8 +216,9 @@ function calc_ras_dim(prob::RASCIAnsatz)
         idxas = Vector{Int}()
         graph_a = make_cat_graphs(fock_list_a[j], prob)
         idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
-        lu = zeros(Int, graph_a.no, graph_a.no, max_a)
-        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected[j], idxas, lu))
+        lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
+        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected[j], idxas, 0, lu))
+
     end
         
     
@@ -278,8 +232,8 @@ function calc_ras_dim(prob::RASCIAnsatz)
         idxbs = Vector{Int}()
         graph_b = make_cat_graphs(fock_list_b[j], prob)
         idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
-        lu = zeros(Int, graph_b.no, graph_b.no, max_b)
-        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs, lu))
+        lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
+        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs,0, lu))
     end
 
     count = 0

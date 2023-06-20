@@ -8,10 +8,10 @@ using Arpack
 using NPZ
 using JLD2
 
-@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_integrals.jld2"
-@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_ras_solution_info.jld2"
+#@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_integrals.jld2"
+@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_ras_solution.jld2"
 
-v = abs.(v)
+#v = abs.(v)
 
 #@testset "RAS Precompute same spin blocks (H6, 3α, 3β), Davidson=true" begin
 #    evals, evecs = fci.RASCI.solve(ints, p, ci_vec, 100, 1, 1e-8, true, true)
@@ -38,12 +38,13 @@ v = abs.(v)
 #end
 
 @testset "RASCI (H6, 3α, 3β), Davidson=false" begin
-    solver = SolverSettings(nroots=1, tol=1e-8, maxiter=100)
-    solution = ActiveSpaceSolvers.solve(ints, prob, solver)
+    solution = ActiveSpaceSolvers.solve(ints, ras, solver)
     eval = solution.energies
-    #v = solution.vectors
-    #eval = eval[1]+ints.h0
-    eval = eval[1]
-    #v = v[:,1]
-    @test isapprox(eval, e[1]+ints.h0, atol=10e-13)
+    @test isapprox(eval, ras_sol.energies, atol=10e-13)
 end
+
+@testset "RASCI expval of S^2" begin
+    s2_new = ActiveSpaceSolvers.RASCI.compute_S2_expval(ras_sol.vectors, ras)
+    @test isapprox(s2_new, s2, atol=10e-14)
+end
+

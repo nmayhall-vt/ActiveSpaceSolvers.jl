@@ -22,8 +22,9 @@ function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
         comb_kl = 0
         comb_ij = 0
         cat_Ib = find_cat(Ib, cats_b)
-        pair_Ib = find_spin_pair(spin_pairs, cat_Ib.idx, "beta")
-        Ib_local = Ib-spin_pairs[pair_Ib].bshift
+        #pair_Ib = find_spin_pair(spin_pairs, cat_Ib.idx, "beta")
+        #Ib_local = Ib-spin_pairs[pair_Ib].bshift
+        Ib_local = Ib-cat_Ib.shift
         for k in 1:prob.no, l in 1:prob.no
             Kb = cat_Ib.lookup[l,k,Ib_local]
             Kb != 0 || continue
@@ -32,8 +33,9 @@ function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
             @inbounds F[Kb] += sign_kl*gkl[k,l]
             catb_kl = find_cat(Kb, cats_b)
             comb_kl = (k-1)*prob.no + l
-            pair_Kb = find_spin_pair(spin_pairs, catb_kl.idx, "beta") 
-            Kb_local = Kb-spin_pairs[pair_Kb].bshift
+            #pair_Kb = find_spin_pair(spin_pairs, catb_kl.idx, "beta") 
+            #Kb_local = Kb-spin_pairs[pair_Kb].bshift
+            Kb_local = Kb-catb_kl.shift
 
             for i in 1:prob.no, j in 1:prob.no
                 comb_ij = (i-1)*prob.no + j
@@ -91,8 +93,9 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
         comb_kl = 0
         comb_ij = 0
         cat_Ia = find_cat(Ia, cats_a)
-        pair_Ia = find_spin_pair(spin_pairs, cat_Ia.idx, "alpha")
-        Ia_local = Ia-spin_pairs[pair_Ia].ashift
+        #pair_Ia = find_spin_pair(spin_pairs, cat_Ia.idx, "alpha")
+        #Ia_local = Ia-spin_pairs[pair_Ia].ashift
+        Ia_local = Ia-cat_Ia.shift
         for k in 1:prob.no, l in 1:prob.no
             Ka = cat_Ia.lookup[l,k,Ia_local]
             Ka != 0 || continue
@@ -101,8 +104,9 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
             @inbounds F[Ka] += sign_kl*gkl[k,l]
             cata_kl = find_cat(Ka, cats_a)
             comb_kl = (k-1)*prob.no + l
-            pair_Ka = find_spin_pair(spin_pairs, cata_kl.idx, "alpha") 
-            Ka_local = Ka-spin_pairs[pair_Ka].ashift
+            #pair_Ka = find_spin_pair(spin_pairs, cata_kl.idx, "alpha") 
+            #Ka_local = Ka-spin_pairs[pair_Ka].ashift
+            Ka_local = Ka-cata_kl.shift
 
             for i in 1:prob.no, j in 1:prob.no
                 comb_ij = (i-1)*prob.no + j
@@ -157,8 +161,9 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
     
     for Ia in 1:prob.dima
         cat_Ia = find_cat(Ia, cats_a)
-        pair_Ia = find_spin_pair(spin_pairs, cat_Ia.idx, "alpha")
-        Ia_local = Ia-spin_pairs[pair_Ia].ashift
+        #pair_Ia = find_spin_pair(spin_pairs, cat_Ia.idx, "alpha")
+        #Ia_local = Ia-spin_pairs[pair_Ia].ashift
+        Ia_local = Ia-cat_Ia.shift
         for k in 1:prob.no, l in 1:prob.no
             Ja = cat_Ia.lookup[l,k,Ia_local]
             Ja != 0 || continue
@@ -166,20 +171,23 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
             Ja = abs(Ja)
             hkl .= ints.h2[:,:,k,l]
             cata_kl = find_cat(Ja, cats_a)
-            pair_Ja = find_spin_pair(spin_pairs, cata_kl.idx, "alpha") 
-            Ja_local = Ja-spin_pairs[pair_Ja].ashift
+            #pair_Ja = find_spin_pair(spin_pairs, cata_kl.idx, "alpha") 
+            #Ja_local = Ja-spin_pairs[pair_Ja].ashift
+            Ja_local = Ja-cata_kl.shift
             for Ib in 1:prob.dimb
                 cat_Ib = find_cat(Ib, cats_b)
-                pair_Ib = find_spin_pair(spin_pairs, cat_Ib.idx, "beta")
-                Ib_local = Ib-spin_pairs[pair_Ib].bshift
+                #pair_Ib = find_spin_pair(spin_pairs, cat_Ib.idx, "beta")
+                #Ib_local = Ib-spin_pairs[pair_Ib].bshift
+                Ib_local = Ib-cat_Ib.shift
                 for i in 1:prob.no, j in 1:prob.no
                     Jb = cat_Ib.lookup[j,i,Ib_local]
                     Jb != 0 || continue
                     sign_ij = sign(Jb)
                     Jb = abs(Jb)
                     catb_ij = find_cat(Jb, cats_b)
-                    pair_Jb = find_spin_pair(spin_pairs, catb_ij.idx, "beta") 
-                    Jb_local = Jb-spin_pairs[pair_Jb].bshift
+                    #pair_Jb = find_spin_pair(spin_pairs, catb_ij.idx, "beta") 
+                    #Jb_local = Jb-spin_pairs[pair_Jb].bshift
+                    Jb_local = Jb-catb_ij.shift
                     if cat_Ib.idx in cat_Ia.connected
                         if catb_ij.idx in cata_kl.connected
                             m = find_spin_pair(spin_pairs, (cat_Ia.idx, cat_Ib.idx))
@@ -214,13 +222,13 @@ function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, 
             for cats in catb.connected
                 for Ia in cats_a[cats].idxs
                     n = find_spin_pair(spin_pairs, (cats_a[cats].idx, catb.idx))
-                    Ia_v_local = Ia-spin_pairs[n].ashift
+                    Ia_v_local = Ia-cats_a[cats].shift
                     for Jb in catb.idxs
-                        Jb_local = Jb-spin_pairs[n].bshift
+                        Jb_local = Jb-catb.shift
                         if cats_a[cats].idx in current_cat.connected
                             m = find_spin_pair(spin_pairs, (cats_a[cats].idx, current_cat.idx))
-                            Ia_local = Ia-spin_pairs[m].ashift
-                            Ib_local = I-spin_pairs[m].bshift
+                            Ia_local = Ia-cats_a[cats].shift
+                            Ib_local = I-current_cat.shift
                             @inbounds @simd for si in 1:n_roots
                                 sig[m][Ia_local,Ib_local,si] += F[Jb]*v[n][Ia_v_local,Jb_local, si]
                             end
@@ -235,13 +243,13 @@ function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, 
             for cats in cata.connected
                 for Ib in cats_b[cats].idxs
                     n = find_spin_pair(spin_pairs, (cata.idx, cats_b[cats].idx))
-                    Ib_v_local = Ib-spin_pairs[n].bshift
+                    Ib_v_local = Ib-cats_b[cats].shift
                     for Ja in cata.idxs
-                        Ja_local = Ja-spin_pairs[n].ashift
+                        Ja_local = Ja-cata.shift
                         if cats_b[cats].idx in current_cat.connected
                             m = find_spin_pair(spin_pairs, (current_cat.idx, cats_b[cats].idx))
-                            Ia_local = I-spin_pairs[m].ashift
-                            Ib_local = Ib-spin_pairs[m].bshift
+                            Ia_local = I-current_cat.shift
+                            Ib_local = Ib-cats_b[cats].shift
                             @inbounds @simd for si in 1:n_roots
                                 sig[m][Ia_local,Ib_local,si] += F[Ja]*v[n][Ja_local, Ib_v_local,si]
                             end
@@ -270,7 +278,7 @@ function ras_compute_1rdm(prob::RASCIAnsatz, C::Vector)
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         for Ia in cats_a[spin_pairs[m].pair[1]].idxs
-            Ia_local = Ia-spin_pairs[m].ashift
+            Ia_local = Ia-cat_Ia.shift
             for k in 1:prob.no, l in 1:prob.no
                 Ja = cat_Ia.lookup[l,k,Ia_local]
                 Ja != 0 || continue
@@ -279,7 +287,7 @@ function ras_compute_1rdm(prob::RASCIAnsatz, C::Vector)
                 cata_kl = find_cat(Ja, cats_a)
                 n = find_spin_pair(spin_pairs, (cata_kl.idx, spin_pairs[m].pair[2]))
                 n != 0 || continue
-                Ja_local = Ja-spin_pairs[n].ashift
+                Ja_local = Ja-cata_kl.shift
                 rdm1a[l,k] += sign_kl*dot(v[n][Ja_local,:], v[m][Ia_local,:])
             end
         end
@@ -289,7 +297,7 @@ function ras_compute_1rdm(prob::RASCIAnsatz, C::Vector)
     for m in 1:length(spin_pairs)
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
         for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ib-spin_pairs[m].bshift
+            Ib_local = Ib-cat_Ib.shift
             for k in 1:prob.no, l in 1:prob.no
                 Jb = cat_Ib.lookup[l,k,Ib_local]
                 Jb != 0 || continue
@@ -298,7 +306,7 @@ function ras_compute_1rdm(prob::RASCIAnsatz, C::Vector)
                 catb_kl = find_cat(Jb, cats_b)
                 n = find_spin_pair(spin_pairs, (spin_pairs[m].pair[1], catb_kl.idx))
                 n != 0 || continue
-                Jb_local = Jb-spin_pairs[n].bshift
+                Jb_local = Jb-catb_kl.shift
                 rdm1b[l,k] += sign_kl*dot(v[n][:, Jb_local], v[m][:, Ib_local])
             end
         end
@@ -333,7 +341,7 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         for Ia in cats_a[spin_pairs[m].pair[1]].idxs
-            Ia_local = Ia-spin_pairs[m].ashift
+            Ia_local = Ia-cat_Ia.shift
             for p in 1:prob.no, q in 1:prob.no, r in 1:prob.no, s in 1:prob.no
                 #lookup[a,aa,c,cc,idx]
                 Ja = cat_Ia.lookup[q,s,r,p,Ia_local]
@@ -343,7 +351,7 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
                 cata_kl = find_cat(Ja, cats_a_bra)
                 n = find_spin_pair(spin_pairs_bra, (cata_kl.idx, spin_pairs[m].pair[2]))
                 n != 0 || continue
-                Ja_local = Ja-spin_pairs[n].ashift
+                Ja_local = Ja-cata_kl.shift
                 rdm2aa[p,q,r,s] += sign_kl*dot(v[n][Ja_local,:], v[m][Ia_local,:])
             end
         end
@@ -353,7 +361,7 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
     for m in 1:length(spin_pairs)
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
         for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ib-spin_pairs[m].bshift
+            Ib_local = Ib-cat_Ib.shift
             for p in 1:prob.no, q in 1:prob.no, r in 1:prob.no, s in 1:prob.no
                 Jb = cat_Ib.lookup[q,s,r,p,Ib_local]
                 Jb != 0 || continue
@@ -362,7 +370,7 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
                 catb_kl = find_cat(Jb, cats_b_bra)
                 n = find_spin_pair(spin_pairs_bra, (spin_pairs[m].pair[1], catb_kl.idx))
                 n != 0 || continue
-                Jb_local = Jb-spin_pairs[n].bshift
+                Jb_local = Jb-catb_kl.shift
                 rdm2bb[p,q,r,s] += sign_kl*dot(v[n][:, Jb_local], v[m][:, Ib_local])
             end
         end
@@ -373,7 +381,7 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
         cat_Ia = cats_a_ca[spin_pairs_ca[m].pair[1]]
         cat_Ib = cats_b_ca[spin_pairs_ca[m].pair[2]]
         for Ia in cats_a_ca[spin_pairs_ca[m].pair[1]].idxs
-            Ia_local = Ia-spin_pairs_ca[m].ashift
+            Ia_local = Ia-cat_Ia.shift
             for q in 1:prob.no, p in 1:prob.no
                 Ja = cat_Ia.lookup[q,p,Ia_local]
                 Ja != 0 || continue
@@ -381,7 +389,7 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
                 Ja = abs(Ja)
                 cata_pq = find_cat(Ja, cats_a_ca)
                 for Ib in cats_b_ca[spin_pairs[m].pair[2]].idxs
-                    Ib_local = Ib-spin_pairs[m].bshift
+                    Ib_local = Ib-cat_Ib.shift
                     for s in 1:prob.no, r in 1:prob.no
                         Jb = cat_Ib.lookup[s,r,Ib_local]
                         Jb != 0 || continue
@@ -390,8 +398,8 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
                         catb_sr = find_cat(Jb, cats_b_ca)
                         n = find_spin_pair(spin_pairs_ca, (cata_pq.idx, catb_sr.idx))
                         n != 0 || continue
-                        Ja_local = Ja-spin_pairs_ca[n].ashift
-                        Jb_local = Jb-spin_pairs_ca[n].bshift
+                        Ja_local = Ja-cata_pq.shift
+                        Jb_local = Jb-catb_sr.shift
                         rdm2ab[p,q,r,s] += sign_pq*sign_rs*v[n][Ja_local, Jb_local]*v[m][Ia_local, Ib_local]
                     end
                 end
@@ -440,20 +448,23 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
         max_a_bra = length(as_bra)
 
         if type == "no_op"
+            shift = 0
             for j in 1:len_cat_a
                 idxas = Vector{Int}()
                 graph_a = make_cat_graphs(fock_list_a[j], ket)
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
-                push!(all_cats, HP_Category_Bra(j, connected[j], idxas))
+                push!(all_cats, HP_Category_Bra(j, connected[j], idxas, shift))
+                shift += length(idxas)
             end
-            
+            shift = 0
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
                 graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
                 idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
                 sort!(idxas_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra, shift))
+                shift += length(idxas_bra)
             end
             return all_cats_bra, all_cats        
         end
@@ -461,21 +472,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "c"
             #HP_Category_C
+            shift = 0
             for j in 1:len_cat_a
                 idxas = Vector{Int}()
                 graph_a = make_cat_graphs(fock_list_a[j], ket)
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
                 lu = zeros(Int, graph_a.no, length(idxas))
-                push!(all_cats, HP_Category_C(j, cats_a[j], connected[j], idxas, lu))
+                push!(all_cats, HP_Category_C(j, cats_a[j], connected[j], idxas, shift, lu))
+                shift += length(idxas)
             end
             
+            shift = 0
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
                 graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
                 idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
                 sort!(idxas_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra, shift))
+                shift += length(idxas_bra)
             end
             
             for k in 1:len_cat_a
@@ -489,21 +504,24 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "a"
             #HP_Category_A
+            shift = 0
             for j in 1:len_cat_a
                 idxas = Vector{Int}()
                 graph_a = make_cat_graphs(fock_list_a[j], ket)
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
                 lu = zeros(Int, graph_a.no,length(idxas))
-                push!(all_cats, HP_Category_A(j, cats_a[j], connected[j], idxas, lu))
+                push!(all_cats, HP_Category_A(j, cats_a[j], connected[j], idxas, shift, lu))
+                shift += length(idxas)
             end
-            
+            shift = 0
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
                 graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
                 idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
                 sort!(idxas_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra, shift))
+                shift += length(idxas_bra)
             end
             
             for k in 1:len_cat_a
@@ -517,22 +535,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "ca"
             #HP_Category_CA
+            shift = 0
             for j in 1:len_cat_a
                 idxas = Vector{Int}()
                 graph_a = make_cat_graphs(fock_list_a[j], ket)
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
                 lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
-                push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, lu))
+                push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, shift, lu))
+                shift += length(idxas)
             end
 
-            
+            shift = 0
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
                 graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
                 idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
                 sort!(idxas_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra, shift))
+                shift += length(idxas_bra)
             end
             
             for k in 1:len_cat_a
@@ -545,21 +566,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "cc"
             #HP_Category_CC
+            shift = 0
             for j in 1:len_cat_a
                 idxas = Vector{Int}()
                 graph_a = make_cat_graphs(fock_list_a[j], ket)
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
                 lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
-                push!(all_cats, HP_Category_CC(j, cats_a[j], connected[j], idxas, lu))
+                push!(all_cats, HP_Category_CC(j, cats_a[j], connected[j], idxas, shift, lu))
+                shift += length(idxas)
             end
             
+            shift = 0
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
                 graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
                 idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
                 sort!(idxas_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra, shift))
+                shift += length(idxas_bra)
             end
             for k in 1:len_cat_a
                 graph_a = make_cat_graphs(fock_list_a[k], ket)
@@ -572,21 +597,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "cca"
             #HP_Category_CCA
+            shift = 0
             for j in 1:len_cat_a
                 idxas = Vector{Int}()
                 graph_a = make_cat_graphs(fock_list_a[j], ket)
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
                 lu = zeros(Int, graph_a.no, graph_a.no, graph_a.no, length(idxas))
-                push!(all_cats, HP_Category_CCA(j, cats_a[j], connected[j], idxas, lu))
+                push!(all_cats, HP_Category_CCA(j, cats_a[j], connected[j], idxas, shift, lu))
+                shift += length(idxas)
             end
 
+            shift = 0
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
                 graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
                 idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
                 sort!(idxas_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra, shift))
+                shift += length(idxas_bra)
             end
             
             for k in 1:len_cat_a
@@ -600,21 +629,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "ccaa"
             #HP_Category_CCAA
+            shift = 0
             for j in 1:len_cat_a
                 idxas = Vector{Int}()
                 graph_a = make_cat_graphs(fock_list_a[j], ket)
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
                 lu = zeros(Int, graph_a.no, graph_a.no, graph_a.no, graph_a.no, length(idxas))
-                push!(all_cats, HP_Category_CCAA(j, cats_a[j], connected[j], idxas, lu))
+                push!(all_cats, HP_Category_CCAA(j, cats_a[j], connected[j], idxas, shift, lu))
+                shift += length(idxas)
             end
 
+            shift = 0
             for m in 1:length(cats_a_bra)
                 idxas_bra = Vector{Int}()
                 graph_a_bra = make_cat_graphs(fock_list_a_bra[m], bra)
                 idxas_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a_bra, 1, graph_a_bra.max, idxas_bra, rev_as_bra) 
                 sort!(idxas_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxas_bra, shift))
+                shift += length(idxas_bra)
             end
             
             for k in 1:len_cat_a
@@ -647,20 +680,24 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
         max_b_bra = length(bs_bra)
         
         if type == "no_op"
+            shift = 0
             for j in 1:len_cat_b
                 idxbs = Vector{Int}()
                 graph_b = make_cat_graphs(fock_list_b[j], ket)
                 idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                 sort!(idxbs)
-                push!(all_cats, HP_Category_Bra(j, connected[j], idxbs))
+                push!(all_cats, HP_Category_Bra(j, connected[j], idxbs, shift))
+                shift += length(idxbs)
             end
             
+            shift = 0
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra, shift))
+                shift += length(idxbs_bra)
             end
             return all_cats_bra, all_cats        
         end
@@ -668,21 +705,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
         
         if type == "c"
             #HP_Category_C
+            shift = 0
             for j in 1:len_cat_b
                 idxbs = Vector{Int}()
                 graph_b = make_cat_graphs(fock_list_b[j], ket)
                 idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                 sort!(idxbs)
                 lu = zeros(Int, graph_b.no, length(idxbs))
-                push!(all_cats, HP_Category_C(j, cats_b[j], connected[j], idxbs, lu))
+                push!(all_cats, HP_Category_C(j, cats_b[j], connected[j], idxbs, shift, lu))
+                shift += length(idxbs)
             end
             
+            shift = 0
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra, shift))
+                shift += length(idxbs_bra)
             end
             
             for k in 1:len_cat_b
@@ -695,21 +736,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "a"
             #HP_Category_A
+            shift = 0
             for j in 1:len_cat_b
                 idxbs = Vector{Int}()
                 graph_b = make_cat_graphs(fock_list_b[j], ket)
                 idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                 sort!(idxbs)
                 lu = zeros(Int, graph_b.no,length(idxbs))
-                push!(all_cats, HP_Category_A(j, cats_b[j], connected[j], idxbs, lu))
+                push!(all_cats, HP_Category_A(j, cats_b[j], connected[j], idxbs, shift, lu))
+                shift += length(idxbs)
             end
 
+            shift = 0
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra, shift))
+                shift += length(idxbs_bra)
             end
             
             for k in 1:len_cat_b
@@ -721,21 +766,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "ca"
             #HP_Category_CA
+            shift = 0
             for j in 1:len_cat_b
                 idxbs = Vector{Int}()
                 graph_b = make_cat_graphs(fock_list_b[j], ket)
                 idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                 sort!(idxbs)
                 lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
-                push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, lu))
+                push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, shift, lu))
+                shift += length(idxbs)
             end
 
+            shift = 0
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra, shift))
+                shift += length(idxbs_bra)
             end
             
             for k in 1:len_cat_b
@@ -747,21 +796,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "cc"
             #HP_Category_CC
+            shift = 0
             for j in 1:len_cat_b
                 idxbs = Vector{Int}()
                 graph_b = make_cat_graphs(fock_list_b[j], ket)
                 idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                 sort!(idxbs)
                 lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
-                push!(all_cats, HP_Category_CC(j, cats_b[j], connected[j], idxbs, lu))
+                push!(all_cats, HP_Category_CC(j, cats_b[j], connected[j], idxbs, shift, lu))
+                shift += length(idxbs)
             end
 
+            shift = 0
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra, shift))
+                shift += length(idxbs_bra)
             end
             
             for k in 1:len_cat_b
@@ -773,21 +826,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
         if type == "cca"
             #HP_Category_CCA
+            shift =0 
             for j in 1:len_cat_b
                 idxbs = Vector{Int}()
                 graph_b = make_cat_graphs(fock_list_b[j], ket)
                 idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                 sort!(idxbs)
                 lu = zeros(Int, graph_b.no, graph_b.no, graph_b.no, length(idxbs))
-                push!(all_cats, HP_Category_CCA(j, cats_b[j], connected[j], idxbs, lu))
+                push!(all_cats, HP_Category_CCA(j, cats_b[j], connected[j], idxbs, shift, lu))
+                shift += length(idxbs)
             end
 
+            shift = 0
             for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra, shift))
+                shift += length(idxbs_bra)
             end
             
             for k in 1:len_cat_b
@@ -799,21 +856,25 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
 
        if type == "ccaa"
            #HP_Category_CCAA
+           shift = 0
            for j in 1:len_cat_b
                idxbs = Vector{Int}()
                graph_b = make_cat_graphs(fock_list_b[j], ket)
                idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                sort!(idxbs)
                lu = zeros(Int, graph_b.no, graph_b.no, graph_b.no, graph_b.no, length(idxbs))
-               push!(all_cats, HP_Category_CCAA(j, cats_b[j], connected[j], idxbs, lu))
+               push!(all_cats, HP_Category_CCAA(j, cats_b[j], connected[j], idxbs, shift, lu))
+               shift += length(idxbs)
            end
 
+           shift = 0
            for m in 1:length(cats_b_bra)
                 idxbs_bra = Vector{Int}()
                 graph_b_bra = make_cat_graphs(fock_list_b_bra[m], bra)
                 idxbs_bra = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b_bra, 1, graph_b_bra.max, idxbs_bra, rev_bs_bra) 
                 sort!(idxbs_bra)
-                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra))
+                push!(all_cats_bra, HP_Category_Bra(m, connected_bra[m], idxbs_bra, shift))
+                shift += length(idxbs_bra)
             end
            
             for k in 1:len_cat_b

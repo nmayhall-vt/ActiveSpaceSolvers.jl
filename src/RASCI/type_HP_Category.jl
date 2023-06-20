@@ -11,6 +11,7 @@ struct HP_Category_CA <: HP_Category
     hp::Tuple{Int, Int} #(holes, particles)
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
+    shift::Int #shift from local to global indexes
     lookup::Array{Int, 3} #single spin lookup table for single excitations
 end
 
@@ -19,6 +20,7 @@ struct HP_Category_C <: HP_Category
     hp::Tuple{Int, Int} #(holes, particles)
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
+    shift::Int #shift from local to global indexes
     lookup::Array{Int, 2} #single spin lookup table for single excitations
 end
 
@@ -27,6 +29,7 @@ struct HP_Category_A <: HP_Category
     hp::Tuple{Int, Int} #(holes, particles)
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
+    shift::Int #shift from local to global indexes
     lookup::Array{Int, 2} #single spin lookup table for single excitations
 end
 
@@ -35,6 +38,7 @@ struct HP_Category_CC <: HP_Category
     hp::Tuple{Int, Int} #(holes, particles)
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
+    shift::Int #shift from local to global indexes
     lookup::Array{Int, 3} #single spin lookup table for single excitations
 end
 
@@ -43,6 +47,7 @@ struct HP_Category_CCA <: HP_Category
     hp::Tuple{Int, Int} #(holes, particles)
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
+    shift::Int #shift from local to global indexes
     lookup::Array{Int, 4} #single spin lookup table for single excitations
 end
 
@@ -51,6 +56,7 @@ struct HP_Category_CCAA <: HP_Category
     hp::Tuple{Int, Int} #(holes, particles)
     connected::Vector{Int} #list of allowed pairings of other spin categories
     idxs::Vector{Int}
+    shift::Int #shift from local to global indexes
     lookup::Array{Int, 5} #single spin lookup table for single excitations
 end
 
@@ -58,6 +64,7 @@ struct HP_Category_Bra <: HP_Category
     idx::Int
     connected::Vector{Int}
     idxs::Vector{Int}
+    shift::Int
 end
 
 
@@ -98,15 +105,15 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
         #    rev_as[i] = idx
         #end
         max_a = length(as)
-
+        shift = 0
         for j in 1:len_cat_a
             idxas = Vector{Int}()
             graph_a = make_cat_graphs(fock_list_a[j], prob)
             idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
             sort!(idxas)
             lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
-            #lu = zeros(Int, graph_a.no, graph_a.no, max_a)
-            push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, lu))
+            push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, shift, lu))
+            shift += length(idxas)
         end
         
         #have to do same loop as before bec all categories need initalized for the dfs search for lookup tables
@@ -128,15 +135,15 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
         #    rev_bs[i] = idx
         #end
         max_b = length(bs)
-        
+        shift = 0
         for j in 1:len_cat_b
             idxbs = Vector{Int}()
             graph_b = make_cat_graphs(fock_list_b[j], prob)
             idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
             sort!(idxbs)
             lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
-            #lu = zeros(Int, graph_b.no, graph_b.no, max_b)
-            push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, lu))
+            push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, shift, lu))
+            shift += length(idxbs)
         end
 
         for k in 1:len_cat_b

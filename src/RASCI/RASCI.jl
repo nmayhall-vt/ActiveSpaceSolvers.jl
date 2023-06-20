@@ -11,7 +11,6 @@ include("type_HP_Category.jl");
 include("type_SpinPairs.jl");
 include("TDMs.jl");
 include("inner.jl");
-include("single_index_lookup.jl");
 include("rasci_inner.jl");
 
 # import stuff so we can extend and export

@@ -554,7 +554,7 @@ function fill_lu(norb::Int, nelec::Int, g::RASCI_OlsenGraph)
 end
 
 function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=0, ras3_max=ras_spaces[3])
-    n_unocc = (norbs-nelec)+1
+    n_unocc = (norbs-nelec)+1#={{{=#
     x = zeros(Int, n_unocc, nelec+1)
     if ras1_min == 0 && ras3_max==ras_spaces[3]
         #do fci graph
