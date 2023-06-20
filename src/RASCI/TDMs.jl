@@ -414,7 +414,7 @@ function compute_operator_ca_ab(bra::Solution{RASCIAnsatz,T},
                     end
                 end
             end
-end
+        end
     end
     #                      [p,q,s,t]
     tdm = permutedims(tdm, [3,4,1,2])

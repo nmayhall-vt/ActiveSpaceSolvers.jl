@@ -1,8 +1,306 @@
 using JLD2
 using InCoreIntegrals
 
+"""
+    compute_S2_expval(prb::RASCIAnsatz)
+- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
+"""
+function compute_S2_expval(C::Matrix, P::RASCIAnsatz)
+    ###{{{
+    #S2 = (S+S- + S-S+)1/2 + Sz.Sz
+    #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
+    #   do swaps and you can end up adding the two together to get rid
+    #   of the 1/2 factor so 
+    #   = (-1) sum_ij(ai'aj|alpha>bj'bi|beta> + Sz.Sz
+    ###
+    
+    as, bs, rev_as, rev_bs, all_cats_a, all_cats_b = S2_helper(P)
+    spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(P, all_cats_a, all_cats_b)
+    
+    nr = size(C,2)
+    s2 = zeros(nr)
+    
+    v = Dict{Int, Array{Float64, 3}}()
+    
+    start = 1
+    for m in 1:length(spin_pairs)
+        tmp = C[start:start+spin_pairs[m].dim-1, :]
+        v[m] = reshape(tmp, (length(all_cats_a[spin_pairs[m].pair[1]].idxs), length(all_cats_b[spin_pairs[m].pair[2]].idxs), nr))
+        start += spin_pairs[m].dim
+    end
+    
+    for m in 1:length(spin_pairs)
+        cat_Ia = all_cats_a[spin_pairs[m].pair[1]]
+        cat_Ib = all_cats_b[spin_pairs[m].pair[2]]
+        for Ia in all_cats_a[spin_pairs[m].pair[1]].idxs
+            config_a = as[Ia]
+            Ia_local = Ia-cat_Ia.shift
+            for Ib in all_cats_b[spin_pairs[m].pair[2]].idxs
+                config_b = bs[Ib]
+                Ib_local = Ib-cat_Ib.shift
+
+                #Sz.Sz (α) 
+                count_a = (P.na-1)*P.na
+                for i in 1:count_a
+                    for r in 1:nr
+                        s2[r] += 0.25*v[m][Ia_local, Ib_local, r]*v[m][Ia_local, Ib_local, r]
+                    end
+                end
+                
+                #Sz.Sz (β)
+                count_b = (P.nb-1)*P.nb
+                for i in 1:count_b
+                    for r in 1:nr
+                        s2[r] += 0.25*v[m][Ia_local, Ib_local, r]*v[m][Ia_local, Ib_local, r]
+                    end
+                end
+
+                #Sz.Sz (α,β)
+                for ai in config_a
+                    for bj in config_b
+                        if ai != bj
+                            for r in 1:nr
+                                s2[r] -= .5 * v[m][Ia_local, Ib_local, r]*v[m][Ia_local, Ib_local, r] 
+                            end
+                        end
+                    end
+                end
+
+                ##Sp.Sm + Sm.Sp Diagonal Part
+                for ai in config_a
+                    if ai in config_b
+                    else
+                        for r in 1:nr
+                            s2[r] += .75 * v[m][Ia_local, Ib_local, r]*v[m][Ia_local, Ib_local, r] 
+                        end
+                    end
+                end
+
+                for bi in config_b
+                    if bi in config_a
+                    else
+                        for r in 1:nr
+                            s2[r] += .75 * v[m][Ia_local, Ib_local, r]*v[m][Ia_local, Ib_local, r] 
+                        end
+                    end
+                end
+                
+                #(Sp.Sm + Sm.Sp)1/2 Off Diagonal Part
+                for ai in config_a
+                    for bj in config_b
+                        if ai ∉ config_b
+                            if bj ∉ config_a
+                                #Sp.Sm + Sm.Sp
+                                La = cat_Ia.lookup[ai,bj,Ia_local]
+                                La != 0 || continue
+                                sign_a = sign(La)
+                                La = abs(La)
+                                cat_La = find_cat(La, all_cats_a)
+                                Lb = cat_Ib.lookup[bj,ai,Ib_local]
+                                Lb != 0 || continue
+                                sign_b = sign(Lb)
+                                Lb = abs(Lb)
+                                cat_Lb = find_cat(Lb, all_cats_b)
+                                n = find_spin_pair(spin_pairs, (cat_La.idx, cat_Lb.idx))
+                                n != 0 || continue
+                                La_local = La-cat_La.shift
+                                Lb_local = Lb-cat_Lb.shift
+                                for r in 1:nr
+                                    s2[r] -= sign_a*sign_b*v[m][Ia_local, Ib_local,r]*v[n][La_local, Lb_local, r]
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return s2#=}}}=#
+end
+
+"""
+    apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where {T}
+- `P`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
+"""
+function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
+    #S2 = (S+S- + S-S+)1/2 + Sz.Sz
+    #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
+    #   do swaps and you can end up adding the two together to get rid
+    #   of the 1/2 factor so 
+    #   = (-1) sum_ij(ai'aj|alpha>bj'bi|beta> + Sz.Sz
+    ###
+    
+    as, bs, rev_as, rev_bs, all_cats_a, all_cats_b = S2_helper(P)
+    spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(P, all_cats_a, all_cats_b)
+    
+    P.dim == size(C,1) || throw(DimensionMismatch)
+    
+    v = Dict{Int, Array{Float64, 3}}()
+    S2v = Dict{Int, Array{Float64, 3}}()
+    
+    nr = size(C, 2)
+    start = 1
+    for m in 1:length(spin_pairs)
+        S2v[m] = zeros(length(all_cats_a[spin_pairs[m].pair[1]].idxs), length(all_cats_b[spin_pairs[m].pair[2]].idxs), nr)
+        tmp = C[start:start+spin_pairs[m].dim-1, :]
+        v[m] = reshape(tmp, (length(all_cats_a[spin_pairs[m].pair[1]].idxs), length(all_cats_b[spin_pairs[m].pair[2]].idxs), nr))
+        start += spin_pairs[m].dim
+    end
+    
+    for m in 1:length(spin_pairs)
+        cat_Ia = all_cats_a[spin_pairs[m].pair[1]]
+        cat_Ib = all_cats_b[spin_pairs[m].pair[2]]
+        for Ia in all_cats_a[spin_pairs[m].pair[1]].idxs
+            config_a = as[Ia]
+            Ia_local = Ia-cat_Ia.shift
+            for Ib in all_cats_b[spin_pairs[m].pair[2]].idxs
+                config_b = bs[Ib]
+                Ib_local = Ib-cat_Ib.shift
+
+                #Sz.Sz (α) 
+                count_a = (P.na-1)*P.na
+                for i in 1:count_a
+                    S2v[m][Ia_local, Ib_local, :] .+= 0.25.*v[m][Ia_local, Ib_local, :]
+                end
+                
+                #Sz.Sz (β)
+                count_b = (P.nb-1)*P.nb
+                for i in 1:count_b
+                    S2v[m][Ia_local, Ib_local, :] .+= 0.25.*v[m][Ia_local, Ib_local, :]
+                end
+
+                #Sz.Sz (α,β)
+                for ai in config_a
+                    for bj in config_b
+                        if ai != bj
+                            S2v[m][Ia_local, Ib_local, :] .-= 0.5.*v[m][Ia_local, Ib_local, :]
+                        end
+                    end
+                end
+
+                ##Sp.Sm + Sm.Sp Diagonal Part
+                for ai in config_a
+                    if ai in config_b
+                    else
+                        S2v[m][Ia_local, Ib_local, :] .+= 0.75.*v[m][Ia_local, Ib_local, :]
+                    end
+                end
+
+                for bi in config_b
+                    if bi in config_a
+                    else
+                        S2v[m][Ia_local, Ib_local, :] .+= 0.75.*v[m][Ia_local, Ib_local, :]
+                    end
+                end
+                
+                #(Sp.Sm + Sm.Sp)1/2 Off Diagonal Part
+                for ai in config_a
+                    for bj in config_b
+                        if ai ∉ config_b
+                            if bj ∉ config_a
+                                #Sp.Sm + Sm.Sp
+                                La = cat_Ia.lookup[ai,bj,Ia_local]
+                                La != 0 || continue
+                                sign_a = sign(La)
+                                La = abs(La)
+                                cat_La = find_cat(La, all_cats_a)
+                                Lb = cat_Ib.lookup[bj,ai,Ib_local]
+                                Lb != 0 || continue
+                                sign_b = sign(Lb)
+                                Lb = abs(Lb)
+                                cat_Lb = find_cat(Lb, all_cats_b)
+                                n = find_spin_pair(spin_pairs, (cat_La.idx, cat_Lb.idx))
+                                n != 0 || continue
+                                La_local = La-cat_La.shift
+                                Lb_local = Lb-cat_Lb.shift
+                                S2v[m][Ia_local, Ib_local, :] .-= sign_a*sign_b*v[n][La_local, Lb_local,:]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    starti = 1
+    S2 = zeros(Float64, P.ras_dim, nr)
+    for m in 1:length(spin_pairs)
+        tmp = reshape(S2v[m], (size(S2v[m],1)*size(S2v[m],2), nr))
+        S2[starti:starti+spin_pairs[m].dim-1, :] .= tmp
+        starti += spin_pairs[m].dim
+    end
+    
+    return S2
+end
+
+function S2_helper(P::RASCIAnsatz)
+    categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(P)#={{{=#
+    all_cats_a = Vector{HP_Category_CA}()
+    all_cats_b = Vector{HP_Category_CA}()
+    
+    cats_a = deepcopy(categories)
+    cats_b = deepcopy(categories)
+    fock_list_a, del_at_a = make_fock_from_categories(categories, P, "alpha")
+    deleteat!(cats_a, del_at_a)
+    len_cat_a = length(cats_a)
+        
+    fock_list_b, del_at_b = make_fock_from_categories(categories, P, "beta")
+    deleteat!(cats_b, del_at_b)
+    len_cat_b = length(cats_b)
+
+    #alpha
+    connected_a = make_spincategory_connections(cats_a, cats_b, P)
+
+    #compute configs
+    as = compute_config_dict(fock_list_a, P, "alpha")
+    rev_as = Dict(value => key for (key, value) in as)
+    #this reverses the config dictionary to get the index as the key 
+
+    shift = 0
+    for j in 1:len_cat_a
+        idxas = Vector{Int}()
+        graph_a = make_cat_graphs(fock_list_a[j], P)
+        idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
+        sort!(idxas)
+        lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
+        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected_a[j], idxas, shift, lu))
+        shift += length(idxas)
+    end
+
+    for k in 1:len_cat_a
+        graph_a = make_cat_graphs(fock_list_a[k], P)
+        lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_a, 1, graph_a.max, all_cats_a[k].lookup, all_cats_a, rev_as)
+        all_cats_a[k].lookup .= lu
+    end
+
+    #beta
+    connected_b = make_spincategory_connections(cats_b, cats_a, P)
+    #compute configs
+    bs = compute_config_dict(fock_list_b, P, "beta")
+    rev_bs = Dict(value => key for (key, value) in bs)
+
+    shiftb = 0
+    for j in 1:len_cat_b
+        idxbs = Vector{Int}()
+        graph_b = make_cat_graphs(fock_list_b[j], P)
+        idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
+        sort!(idxbs)
+        lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
+        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs, shiftb, lu))
+        shiftb += length(idxbs)
+    end
+
+    for k in 1:len_cat_b
+        graph_b = make_cat_graphs(fock_list_b[k], P)
+        lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_b, 1, graph_b.max, all_cats_b[k].lookup, all_cats_b, rev_bs)
+        all_cats_b[k].lookup .= lu
+    end
+#=}}}=#
+    return as, bs, rev_as, rev_bs, all_cats_a, all_cats_b
+end
+
 function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
-    sigma_one = Dict{Int, Array{Float64,3}}()
+    sigma_one = Dict{Int, Array{Float64,3}}()#={{{=#
     v = Dict{Int, Array{Float64, 3}}()
     n_spin_pairs = length(spin_pairs)
     nroots = size(C,2)
@@ -68,11 +366,11 @@ function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
         sig[start:start+spin_pairs[m].dim-1, :] .= tmp
         start += spin_pairs[m].dim
     end
-    return sig
+    return sig#=}}}=#
 end
 
 function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
-    sigma_two = Dict{Int, Array{Float64,3}}()
+    sigma_two = Dict{Int, Array{Float64,3}}()#={{{=#
     v = Dict{Int, Array{Float64, 3}}()
     n_spin_pairs = length(spin_pairs)
     nroots = size(C,2)
@@ -139,11 +437,11 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
         sig[starti:starti+spin_pairs[m].dim-1, :] .= tmp
         starti += spin_pairs[m].dim
     end
-    return sig
+    return sig#=}}}=#
 end
 
 function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
-    sigma_three = Dict{Int, Array{Float64,3}}()
+    sigma_three = Dict{Int, Array{Float64,3}}()#={{{=#
     v = Dict{Int, Array{Float64, 3}}()
     n_spin_pairs = length(spin_pairs)
     nroots = size(C,2)
@@ -209,12 +507,11 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
         sig[start:start+spin_pairs[m].dim-1, :] .= tmp
         start += spin_pairs[m].dim
     end
-    return sig
+    return sig#=}}}=#
 end
 
-
 function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, F::Vector{T}, I::Int, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, spin_pairs::Vector{Spin_Pair}; sigma="one") where {T}
-    n_roots = size(v[1],3)
+    n_roots = size(v[1],3)#={{{=#
 
     if sigma == "one"
         current_cat = find_cat(I, cats_b)
@@ -258,11 +555,11 @@ function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, 
                 end
             end
         end
-    end
+    end#=}}}=#
 end
 
-function ras_compute_1rdm(prob::RASCIAnsatz, C::Vector)
-    spin_pairs, cats_a, cats_b = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)
+function compute_1rdm(prob::RASCIAnsatz, C::Vector)
+    spin_pairs, cats_a, cats_b = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)#={{{=#
     rdm1a = zeros(prob.no, prob.no)
     rdm1b = zeros(prob.no, prob.no)
     v = Dict{Int, Array{Float64, 2}}()
@@ -312,11 +609,11 @@ function ras_compute_1rdm(prob::RASCIAnsatz, C::Vector)
         end
     end
 
-    return rdm1a, rdm1b
+    return rdm1a, rdm1b#=}}}=#
 end
 
-function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
-    cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")
+function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+    cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")#={{{=#
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="beta", type="ccaa")
     spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob, cats_a, cats_b)
     spin_pairs_bra = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob, cats_a_bra, cats_b_bra)
@@ -406,7 +703,7 @@ function ras_compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
             end
         end
     end
-    return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab
+    return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
 end
 
 function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")

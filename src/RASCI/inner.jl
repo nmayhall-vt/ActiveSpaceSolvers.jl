@@ -1192,7 +1192,7 @@ function apply_creation!(config, orb_index, graph::RASCI_OlsenGraph, must_obey::
 end
 
 function apply_a(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
-    idx_org = config_dict_ket[config]
+    idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
 
@@ -1215,11 +1215,11 @@ function apply_a(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector
     if spot % 2 != 1
         sign = -1
     end
-    return sign, new, idx_local, idx
+    return sign, new, idx_local, idx#=}}}=#
 end
 
 function apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
-    idx_org = config_dict_ket[config]
+    idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
 
@@ -1270,7 +1270,7 @@ function apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector
 end
 
 function apply_ca(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
-    idx_org = config_dict_ket[config]
+    idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
     
@@ -1337,7 +1337,7 @@ end
 
 
 function apply_cc(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
-    idx_org = config_dict_ket[config]
+    idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
 
@@ -1398,7 +1398,7 @@ function apply_cc(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket:
 end
 
 function apply_cca(config, orb_a, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
-    idx_org = config_dict_ket[config]
+    idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
 
@@ -1470,7 +1470,7 @@ function apply_cca(config, orb_a, orb, orb2, config_dict_ket, config_dict_bra, c
 end
 
 function apply_ccaa(config, orb_a, orb_aa, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
-    idx_org = config_dict_ket[config]
+    idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
 
@@ -1558,7 +1558,7 @@ end
 - `p`: RASCIAnsatz just defines the current RASCI problem
 - `v` : CI vector from RASCI solution
 """
-function compute_1rdm(prob::RASCIAnsatz, v::Vector)
+function old_compute_1rdm(prob::RASCIAnsatz, v::Vector)
     vnew = reshape(v, prob.dima, prob.dimb)
     rdm1a = zeros(prob.no, prob.no)
     rdm1b = zeros(prob.no, prob.no)
@@ -1622,7 +1622,7 @@ end
 - `p`: RASCIAnsatz just defines teh current RASCI problem 
 - `v` : CI vector from RASCI solution
 """
-function compute_1rdm_2rdm(prob::RASCIAnsatz, v::Vector)
+function old_compute_1rdm_2rdm(prob::RASCIAnsatz, v::Vector)
     vnew = reshape(v, prob.dima, prob.dimb)
     rdm1a, rdm1b = compute_1rdm(prob, v)
     rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)

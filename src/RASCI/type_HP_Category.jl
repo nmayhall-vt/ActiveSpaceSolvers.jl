@@ -70,13 +70,11 @@ end
 
 function HP_Category_CA()
     return HP_Category_CA(1,(0,0),Vector{Int}(), Vector{Int}(), Vector{Int}(), Array{Int, 3}())
-    #return HP_Category_CA(1,(1,1),Vector{Int}(), Vector{Int}(), Vector{Int}(), Vector{Array{Int, 3}}())
 end
 
 function HP_Category_CA(idx::Int, hp::Tuple{Int,Int}, connected::Vector{Int})
     return HP_Category_CA(idx, hp, Vector{Int}(), Vector{Int}(), connected, Array{Int, 3}())
 end
-
 
 function make_categories(prob::RASCIAnsatz; spin="alpha")
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)#={{{=#
@@ -155,24 +153,6 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
     end#=}}}=#
 end
 
-function test_lus(categories, old_configs, prob)
-    a_lookup = ActiveSpaceSolvers.RASCI.fill_lookup(prob, old_configs, prob.dima)#={{{=#
-
-    for Ia in 1:prob.dima
-        cat = find_cat(Ia, categories)
-        
-        for k in 1:prob.no, l in 1:prob.no
-            K_idx = cat.lookup[k,l,Ia]
-            K_old = a_lookup[k,l,Ia]
-            
-            if K_idx != K_old
-                println("nope")
-            end
-
-        end
-    end
-end#=}}}=#
-
 function compute_config_dict(fock_list, prob::RASCIAnsatz, spin="alpha")
     configs_dict = Dict{Int, Vector{Int32}}()#={{{=#
     configs = []
@@ -194,7 +174,6 @@ function compute_config_dict(fock_list, prob::RASCIAnsatz, spin="alpha")
     end
     return configs_dict#=}}}=#
 end
-
 
 function generate_spin_categories(prob::RASCIAnsatz)
     categories = []#={{{=#
@@ -242,7 +221,6 @@ function make_category_connections(categories, prob::RASCIAnsatz)
     end
     return connected#=}}}=#
 end
-
 
 function make_fock_from_categories(categories, prob::RASCIAnsatz, spin="alpha")
     fock_list = []#={{{=#
@@ -342,7 +320,6 @@ function update_x_subgraphs!(x, n_unocc, nelec, shift)
     end#=}}}=#
 end
 
-
 function find_cat(idx::Int, categories::Vector{<:HP_Category})
     #this function will find the category that idx belongs to{{{
     for cat in categories
@@ -355,8 +332,7 @@ function find_cat(idx::Int, categories::Vector{<:HP_Category})
     return 0#=}}}=#
 end
 
-
-function sigma_one(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, v)
+function sigma_one(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, v)#={{{=#
     T = eltype(v[1])#={{{=#
     n_roots::Int = size(v,3)
     sigma_one = zeros(prob.dima, prob.dimb, n_roots)
@@ -509,7 +485,6 @@ function slow_sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cat
     return sigma_three
 end
 
-
 function sigma_three(prob::RASCIAnsatz, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, v)
     T = eltype(v[1])#={{{=#
     n_roots::Int = size(v,3)
@@ -656,374 +631,4 @@ function _scatter!(sig::Array{T, 3}, VI::Array{T, 2}, Ib::Int, R::Vector{Int}, c
         end
     end
 end#=}}}=#
-
-function S2_helper(P::RASCIAnsatz)
-    categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(P)#={{{=#
-    all_cats_a = Vector{HP_Category_CA}()
-    all_cats_b = Vector{HP_Category_CA}()
-    
-    cats_a = deepcopy(categories)
-    cats_b = deepcopy(categories)
-    fock_list_a, del_at_a = make_fock_from_categories(categories, P, "alpha")
-    deleteat!(cats_a, del_at_a)
-    len_cat_a = length(cats_a)
-        
-    fock_list_b, del_at_b = make_fock_from_categories(categories, P, "beta")
-    deleteat!(cats_b, del_at_b)
-    len_cat_b = length(cats_b)
-
-    #alpha
-    connected_a = make_spincategory_connections(cats_a, cats_b, P)
-
-    #compute configs
-    as = compute_config_dict(fock_list_a, P, "alpha")
-    as_old =  ActiveSpaceSolvers.RASCI.compute_configs(P)[1]
-    rev_as = Dict(value => key for (key, value) in as)
-    #this reverses the config dictionary to get the index as the key 
-    #for i in keys(rev_as)
-    #    idx = as_old[i]
-    #    rev_as[i] = idx
-    #end
-    max_a = length(as)
-
-    for j in 1:len_cat_a
-        idxas = Vector{Int}()
-        graph_a = make_cat_graphs(fock_list_a[j], P)
-        idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
-        lu = zeros(Int, graph_a.no, graph_a.no, max_a)
-        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected_a[j], idxas, lu))
-    end
-
-    #have to do same loop as before bec all categories need initalized for the dfs search for lookup tables
-    for k in 1:len_cat_a
-        graph_a = make_cat_graphs(fock_list_a[k], P)
-        ActiveSpaceSolvers.RASCI.dfs_single_excitation!(graph_a, 1, graph_a.max, all_cats_a[k].lookup, all_cats_a, rev_as)
-    end
-
-    #beta
-    connected_b = make_spincategory_connections(cats_b, cats_a, P)
-    #compute configs
-    bs = compute_config_dict(fock_list_b, P, "beta")
-    bs_old = ActiveSpaceSolvers.RASCI.compute_configs(P)[2]
-    rev_bs = Dict(value => key for (key, value) in bs)
-    #for i in keys(rev_bs)
-    #    idx = bs_old[i]
-    #    rev_bs[i] = idx
-    #end
-    max_b = length(bs)
-
-    for j in 1:len_cat_b
-        idxbs = Vector{Int}()
-        graph_b = make_cat_graphs(fock_list_b[j], P)
-        idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
-        lu = zeros(Int, graph_b.no, graph_b.no, max_b)
-        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs, lu))
-    end
-
-    for k in 1:len_cat_b
-        graph_b = make_cat_graphs(fock_list_b[k], P)
-        ActiveSpaceSolvers.RASCI.dfs_single_excitation!(graph_b, 1, graph_b.max, all_cats_b[k].lookup, all_cats_b, rev_bs)
-    end
-#=}}}=#
-    return as, bs, rev_as, rev_bs, all_cats_a, all_cats_b
-end
-
-"""
-    compute_S2_expval(prb::RASCIAnsatz)
-- `prb`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
-"""
-function compute_S2_expval(v::Matrix, P::RASCIAnsatz)
-    ###{{{
-    #S2 = (S+S- + S-S+)1/2 + Sz.Sz
-    #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
-    #   do swaps and you can end up adding the two together to get rid
-    #   of the 1/2 factor so 
-    #   = (-1) sum_ij(ai'aj|alpha>bj'bi|beta> + Sz.Sz
-    ###
-    
-    as, bs, rev_as, rev_bs, all_cats_a, all_cats_b = S2_helper(P)
-    
-    
-    nr = size(v,2)
-    s2 = zeros(nr)
-    
-    for Ib in 1:P.dimb
-        config_b = bs[Ib]
-        cat_Ib = find_cat(Ib, all_cats_b)
-        for Ia in 1:P.dima
-            config_a = as[Ia]
-            cat_Ia = find_cat(Ia, all_cats_a)
-            #if cat_Ia.idx in cat_Ib.connected
-
-                K = Ia + (Ib-1)*P.dima  
-                
-                #Sz.Sz (α) 
-                count_a = (P.na-1)*P.na
-                for i in 1:count_a
-                    for r in 1:nr
-                        s2[r] += 0.25*v[K,r]*v[K,r]
-                    end
-                end
-                #for ai in config_a
-                #    for aj in config_a
-                #        if ai!= aj
-                #            for r in 1:nr
-                #                s2[r] += 0.25 * v[K,r]*v[K,r]
-                #            end
-                #        end
-                #    end
-                #end
-                #
-                #Sz.Sz (β)
-                count_b = (P.nb-1)*P.nb
-                for j in 1:count_b
-                    for r in 1:nr
-                        s2[r] += 0.25*v[K,r]*v[K,r]
-                    end
-                end
-                #for bi in config_b
-                #    for bj in config_b
-                #        if bi != bj
-                #            for r in 1:nr
-                #                s2[r] += 0.25 * v[K,r]*v[K,r]
-                #            end
-                #        end
-                #    end
-                #end
-
-                ###Sz.Sz (α,β)
-                for ai in config_a
-                    for bj in config_b
-                        if ai != bj
-                            for r in 1:nr
-                                s2[r] -= .5 * v[K,r]*v[K,r] 
-                            end
-                        end
-                    end
-                end
-
-                ##Sp.Sm + Sm.Sp Diagonal Part
-                for ai in config_a
-                    if ai in config_b
-                    else
-                        for r in 1:nr
-                            s2[r] += .75 * v[K,r]*v[K,r] 
-                        end
-                    end
-                end
-
-                for bi in config_b
-                    if bi in config_a
-                    else
-                        for r in 1:nr
-                            s2[r] += .75 * v[K,r]*v[K,r] 
-                        end
-                    end
-                end
-                
-                #(Sp.Sm + Sm.Sp)1/2 Off Diagonal Part
-                for ai in config_a
-                    for bj in config_b
-                        if ai ∉ config_b
-                            if bj ∉ config_a
-                                #Sp.Sm + Sm.Sp
-                                La = cat_Ia.lookup[ai,bj,Ia]
-                                if La != 0
-                                    sign_a = sign(La)
-                                    La = abs(La)
-                                    Lb = cat_Ib.lookup[bj,ai,Ib]
-                                    if Lb != 0
-                                        sign_b = sign(Lb)
-                                        Lb = abs(Lb)
-                                        L = La + (Lb-1)*P.dima
-                                        for r in 1:nr
-                                            s2[r] -= sign_a*sign_b*v[K,r]*v[L,r]
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            #end
-        end
-    end
-    return s2#=}}}=#
-end
-
-"""
-    apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where {T}
-- `P`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
-"""
-function apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where T
-    ###{{{
-    #S2 = (S+S- + S-S+)1/2 + Sz.Sz
-    #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
-    #   do swaps and you can end up adding the two together to get rid
-    #   of the 1/2 factor so 
-    #   = (-1) sum_ij(ai'aj|alpha>bj'bi|beta> + Sz.Sz
-    ###
-    
-    as, bs, rev_as, rev_bs, all_cats_a, all_cats_b = S2_helper(P)
-    
-    P.dim == size(v,1) || throw(DimensionMismatch)
-    S2v = zeros(size(v)...)
-    
-    for Ib in 1:P.dimb
-        config_b = bs[Ib]
-        cat_Ib = find_cat(Ib, all_cats_b)
-        for Ia in 1:P.dima
-            config_a = as[Ia]
-            cat_Ia = find_cat(Ia, all_cats_a)
-            #if cat_Ia.idx in cat_Ib.connected
-
-                K = Ia + (Ib-1)*P.dima  
-                
-                #Sz.Sz (α) 
-                count_a = (P.na-1)*P.na
-                for i in 1:count_a
-                    S2v[K,:] .+= 0.25.*v[K,:]
-                end
-                
-                #Sz.Sz (β)
-                count_b = (P.nb-1)*P.nb
-                for j in 1:count_b
-                    S2v[K,:] .+= 0.25.*v[K,:]
-                end
-                
-                #Sz.Sz (α,β)
-                for ai in config_a
-                    for bj in config_b
-                        if ai != bj
-                            S2v[K,:] .-= 0.5.*v[K,:]
-                        end
-                    end
-                end
-
-                ##Sp.Sm + Sm.Sp Diagonal Part
-                for ai in config_a
-                    if ai in config_b
-                    else
-                        S2v[K,:] .+= 0.75.*v[K,:]
-                    end
-                end
-
-                for bi in config_b
-                    if bi in config_a
-                    else
-                        S2v[K,:] .+= 0.75.*v[K,:]
-                    end
-                end
-                
-                #(Sp.Sm + Sm.Sp)1/2 Off Diagonal Part
-                for ai in config_a
-                    for bj in config_b
-                        if ai ∉ config_b
-                            if bj ∉ config_a
-                                #Sp.Sm + Sm.Sp
-                                La = cat_Ia.lookup[ai,bj,Ia]
-                                if La != 0
-                                    sign_a = sign(La)
-                                    La = abs(La)
-                                    Lb = cat_Ib.lookup[bj,ai,Ib]
-                                    if Lb != 0
-                                        sign_b = sign(Lb)
-                                        Lb = abs(Lb)
-                                        L = La + (Lb-1)*P.dima
-                                        S2v[K,:] .-= sign_a*sign_b*v[L,:]
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            #end
-        end
-    end
-    return S2v#=}}}=#
-end
-
-
-function generate_fock_sectors(prob::RASCIAnsatz)#={{{=#
-    alpha_sectors = []
-    beta_sectors = []
-
-    for i in 1:prob.ras3_max+1
-        ras3 = i-1
-        ras3 <= prob.ras_spaces[3] || continue
-        for j in 1:prob.ras_spaces[1]+1
-            ras1 = j-1
-            ras1 <= prob.ras_spaces[1] || continue
-            ras2 = prob.na-ras1-ras3
-            ras2 <= prob.ras_spaces[2] && ras2 >=0 || continue
-            push!(alpha_sectors, [ras1, ras2, ras3])
-        end
-    end
-    if prob.na == prob.nb
-        beta_sectors = alpha_sectors
-        return alpha_sectors, beta_sectors
-    else
-        for i in 1:prob.ras3_max+1
-            ras3 = i-1
-            ras3 <= prob.ras_spaces[3] || continue
-            for j in 1:prob.ras_spaces[1]+1
-                ras1 = j-1 
-                ras1 <= prob.ras_spaces[1] || continue
-                ras2 = prob.nb-ras1-ras3
-                ras2 <= prob.ras_spaces[2] && ras2 >=0 || continue
-                push!(beta_sectors, [ras1, ras2, ras3])
-            end
-        end
-    end
-
-    return alpha_sectors, beta_sectors
-end
-
-function find_paths_indexes(categories::Vector{HP_Category}, graph::ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph, max_dim::Int, config_dict::Dict{Vector{Int32}, Int}, lookup::Array{Int, 3})#={{{=#
-    #this function will do a depth first search (single excitation dfs), find binomial index, and fill lookup tables
-    #using binomial indexing from nicks FCI code
-    #lu = zeros(Int, graph.no, graph.no, max_dim)
-    lu  = ActiveSpaceSolvers.RASCI.dfs_single_excitation!(graph, 1, graph.max, lookup, categories, config_dict)
-    return lu
-end#=}}}=#
-
-
-function compute_sector_coupling(a, b, prob::RASCIAnsatz; spin="alpha")
-    pairs = Vector{Vector{Int}}()
-    if spin == "alpha"
-        for i in 1:length(a)
-            tmp = Vector{Int}()
-            for j in 1:length(b)
-                if a[i][3]+b[j][3]<=prob.ras3_max && a[i][1]+b[j][1]>=prob.ras1_min
-                    append!(tmp, j)
-                    #push!(tmp, (i, j))
-                end
-            end
-            append!(pairs, [tmp])
-        end
-
-    else
-        for i in 1:length(b)
-            tmp = Vector{Int}()
-            for j in 1:length(a)
-                if a[i][3]+b[j][3]<=prob.ras3_max && a[i][1]+b[j][1]>=prob.ras1_min
-                    append!(tmp, j)
-                    #push!(tmp, (i, j))
-                end
-            end
-            append!(pairs, [tmp])
-        end
-    end
-    return pairs
-end#=}}}=#
-
-    
-
-
-
-
-
-
-
-
 

@@ -183,15 +183,6 @@ function calc_ndets(no,nelec)
     return factorial(no)÷(factorial(nelec)*factorial(no-nelec))
 end
 
-"""
-    ActiveSpaceSolvers.compute_s2(sol::Solution)
-
-Compute the <S^2> expectation values for each state in `sol`
-"""
-function ActiveSpaceSolvers.compute_s2(sol::Solution{RASCIAnsatz,T}) where {T}
-    return compute_S2_expval(sol.vectors, sol.ansatz)
-end
-
 function calc_ras_dim(prob::RASCIAnsatz)
     all_cats_a = Vector{HP_Category_CA}()#={{{=#
     all_cats_b = Vector{HP_Category_CA}()
@@ -250,6 +241,15 @@ function calc_ras_dim(prob::RASCIAnsatz)
 end
 
 """
+    ActiveSpaceSolvers.compute_s2(sol::Solution)
+
+Compute the <S^2> expectation values for each state in `sol`
+"""
+function ActiveSpaceSolvers.compute_s2(sol::Solution{RASCIAnsatz,T}) where {T}
+    return compute_S2_expval(sol.vectors, sol.ansatz)
+end
+
+"""
     build_S2_matrix(P::RASCIAnsatz)
 
 Build the S2 matrix in the Slater Determinant Basis  specified by `P`
@@ -272,44 +272,74 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
     # = c(IJ,s)c(KL,t) <I|a|K><J|b'|L> (-1) (-1)^ket_a.ne
     
     nroots = size(v,2)
-    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, ansatz.ras1_min, ansatz.ras3_max)
     
-    tbla, tbla_sign = generate_single_index_lookup(bra_ansatz, ansatz, "alpha")
-    tblb, tblb_sign = generate_single_index_lookup(bra_ansatz, ansatz, "beta")
+    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces,  max_h=ansatz.max_h, max_p=ansatz.max_p)
+    
+    cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="alpha", type="a")
+    cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="beta", type="c")
+    spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(ansatz, cats_a, cats_b)
+    spin_pairs_bra = ActiveSpaceSolvers.RASCI.make_spin_pairs(bra_ansatz, cats_a_bra, cats_b_bra)
+    
+    v2 = Dict{Int, Array{Float64, 3}}()
+    start = 1
+    for m in 1:length(spin_pairs)
+        tmp = v[start:start+spin_pairs[m].dim-1, :]
+        v2[m] = reshape(tmp, (length(cats_a[spin_pairs[m].pair[1]].idxs), length(cats_b[spin_pairs[m].pair[2]].idxs), nroots))
+        start += spin_pairs[m].dim
+    end
+    
+    w = Dict{Int, Array{Float64, 3}}()
+    for m in 1:length(spin_pairs_bra)
+        w[m] = zeros(length(cats_a_bra[spin_pairs_bra[m].pair[1]].idxs), length(cats_b_bra[spin_pairs_bra[m].pair[2]].idxs), nroots)
+    end
 
     sgnK = -1
     if ansatz.na % 2 != 0 
         sgnK = -sgnK
     end
     
-    #w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
-    w = zeros(bra_ansatz.dima, bra_ansatz.dimb, nroots)
-    v = reshape(v, ansatz.dima, ansatz.dimb, nroots)
-
-    for Kb in 1:size(tblb, 1)
-        for Ka in 1:size(tbla, 1)
-            #K = Ka + (Kb-1)*ansatz.dima
-            for ai in 1:ansatz.no
-                La = tbla[Ka, ai]
-                La != 0 || continue
-                La_sign = tbla_sign[Ka, ai]
-                Lb = tblb[Kb, ai]
-                Lb != 0 || continue
-                Lb_sign = tblb_sign[Kb, ai]
-                #L = La + (Lb-1)*bra_ansatz.dima
-                #w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
-                w[La, Lb, :] .+= sgnK*La_sign*Lb_sign*v[Ka, Kb, :]
+    for m in 1:length(spin_pairs)
+        cat_Ia = cats_a[spin_pairs[m].pair[1]]
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        for Ib in cats_b[spin_pairs[m].pair[2]].idxs
+            Ib_local = Ib-cat_Ib.shift
+            for Ia in cats_a[spin_pairs[m].pair[1]].idxs
+                Ia_local = Ia-cat_Ia.shift
+                for p in 1:ansatz.no
+                    Ja = cat_Ia.lookup[p,Ia_local]
+                    Ja != 0 || continue
+                    Ja_sign = sign(Ja)
+                    Ja = abs(Ja)
+                    cata_Ja = find_cat(Ja, cats_a_bra)
+                    Jb = cat_Ib.lookup[p,Ib_local]
+                    Jb != 0 || continue
+                    Jb_sign = sign(Jb)
+                    Jb = abs(Jb)
+                    catb_Jb = find_cat(Jb, cats_b_bra)
+                    n = find_spin_pair(spin_pairs_bra, (cata_Ja.idx, catb_Jb.idx))
+                    n != 0 || continue
+                    Ja_local = Ja-cata_Ja.shift
+                    Jb_local = Jb-catb_Jb.shift
+                    w[n][Ja_local, Jb_local, :] .+= sgnK*Ja_sign*Jb_sign*v2[m][Ia_local, Ib_local, :]
+                end
             end
         end
     end
-    w = reshape(w, bra_ansatz.dima * bra_ansatz.dimb, nroots)
-
+    
+    starti = 1
+    w2 = zeros(Float64, bra_ansatz.ras_dim, nroots)
+    for m in 1:length(spin_pairs_bra)
+        tmp = reshape(w[m], (size(w[m],1)*size(w[m],2), nroots))
+        w2[starti:starti+spin_pairs_bra[m].dim-1, :] .= tmp
+        starti += spin_pairs_bra[m].dim
+    end
+    
     #only keep the states that aren't zero (that weren't killed by S-)
-    wout = zeros(size(w,1),0)
-    for i in 1:size(w,2)
-        ni = norm(w[:,i])
+    wout = zeros(size(w2,1),0)
+    for i in 1:nroots
+        ni = norm(w2[:,i])
         if isapprox(ni, 0, atol=1e-4) == false
-            wout = hcat(wout, w[:,i]./ni)
+            wout = hcat(wout, w2[:,i]./ni)
         end
     end
 
@@ -332,45 +362,73 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
         error(" Can't increase Ms further")
     end
 
-    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, ansatz.ras1_min, ansatz.ras3_max)
-    
-    tbla, tbla_sign = generate_single_index_lookup(bra_ansatz, ansatz, "alpha")
-    tblb, tblb_sign = generate_single_index_lookup(bra_ansatz, ansatz, "beta")
-
     sgnK = 1
     if ansatz.na % 2 != 0 
         sgnK = -sgnK
     end
+
+    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces,  max_h=ansatz.max_h, max_p=ansatz.max_p)
     
-    #w = zeros(bra_ansatz.dima * bra_ansatz.dimb, size(v,2))
-    w = zeros(bra_ansatz.dima, bra_ansatz.dimb, nroots)
-    v = reshape(v, ansatz.dima, ansatz.dimb, nroots)
-    for Kb in 1:size(tblb, 1)
-        for Ka in 1:size(tbla, 1)
-            #K = Ka + (Kb-1)*ansatz.dima
-            for ai in 1:ansatz.no
-                La = tbla[Ka, ai]
-                La != 0 || continue
-                La_sign = tbla_sign[Ka, ai]
-                Lb = tblb[Kb, ai]
-                Lb != 0 || continue
-                Lb_sign = tblb_sign[Kb, ai]
-                #L = La + (Lb-1)*ansatz.dima
-                #println("L ", L)
-                #println("K ", K)
-                w[La, Lb, :] .+= sgnK*La_sign*Lb_sign*v[Ka, Kb, :]
-                #w[L,:] .+= sgnK*La_sign*Lb_sign*v[K,:]
+    cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="alpha", type="c")
+    cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="beta", type="a")
+    spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(ansatz, cats_a, cats_b)
+    spin_pairs_bra = ActiveSpaceSolvers.RASCI.make_spin_pairs(bra_ansatz, cats_a_bra, cats_b_bra)
+    
+    v2 = Dict{Int, Array{Float64, 3}}()
+    start = 1
+    for m in 1:length(spin_pairs)
+        tmp = v[start:start+spin_pairs[m].dim-1, :]
+        v2[m] = reshape(tmp, (length(cats_a[spin_pairs[m].pair[1]].idxs), length(cats_b[spin_pairs[m].pair[2]].idxs), nroots))
+        start += spin_pairs[m].dim
+    end
+    
+    w = Dict{Int, Array{Float64, 3}}()
+    for m in 1:length(spin_pairs_bra)
+        w[m] = zeros(length(cats_a_bra[spin_pairs_bra[m].pair[1]].idxs), length(cats_b_bra[spin_pairs_bra[m].pair[2]].idxs), nroots)
+    end
+    
+    for m in 1:length(spin_pairs)
+        cat_Ia = cats_a[spin_pairs[m].pair[1]]
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        for Ib in cats_b[spin_pairs[m].pair[2]].idxs
+            Ib_local = Ib-cat_Ib.shift
+            for Ia in cats_a[spin_pairs[m].pair[1]].idxs
+                Ia_local = Ia-cat_Ia.shift
+                for p in 1:ansatz.no
+                    Ja = cat_Ia.lookup[p,Ia_local]
+                    Ja != 0 || continue
+                    Ja_sign = sign(Ja)
+                    Ja = abs(Ja)
+                    cata_Ja = find_cat(Ja, cats_a_bra)
+                    Jb = cat_Ib.lookup[p,Ib_local]
+                    Jb != 0 || continue
+                    Jb_sign = sign(Jb)
+                    Jb = abs(Jb)
+                    catb_Jb = find_cat(Jb, cats_b_bra)
+                    n = find_spin_pair(spin_pairs_bra, (cata_Ja.idx, catb_Jb.idx))
+                    n != 0 || continue
+                    Ja_local = Ja-cata_Ja.shift
+                    Jb_local = Jb-catb_Jb.shift
+                    w[n][Ja_local, Jb_local, :] .+= sgnK*Ja_sign*Jb_sign*v2[m][Ia_local, Ib_local, :]
+                end
             end
         end
     end
-
-    w = reshape(w, bra_ansatz.dima * bra_ansatz.dimb, nroots)
+    
+    starti = 1
+    w2 = zeros(Float64, bra_ansatz.ras_dim, nroots)
+    for m in 1:length(spin_pairs_bra)
+        tmp = reshape(w[m], (size(w[m],1)*size(w[m],2), nroots))
+        w2[starti:starti+spin_pairs_bra[m].dim-1, :] .= tmp
+        starti += spin_pairs_bra[m].dim
+    end
+    
     #only keep the states that aren't zero (that weren't killed by S-)
-    wout = zeros(size(w,1),0)
-    for i in 1:size(w,2)
-        ni = norm(w[:,i])
+    wout = zeros(size(w2,1),0)
+    for i in 1:nroots
+        ni = norm(w2[:,i])
         if isapprox(ni, 0, atol=1e-4) == false
-            wout = hcat(wout, w[:,i]./ni)
+            wout = hcat(wout, w2[:,i]./ni)
         end
     end
 
