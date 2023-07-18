@@ -124,13 +124,18 @@ function compute_operator_c_b(bra::Solution{RASCIAnsatz,T},
         start += spin_pairs[m].dim
     end
     
+    sgnK = 1 
+    if (ket.ansatz.na) % 2 != 0 
+        sgnK = -sgnK
+    end
+    
     #   TDM[p,s,t] = 
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no)
 
     for m in 1:length(spin_pairs)
 cat_Ib = cats_b[spin_pairs[m].pair[2]]
         for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ia-cat_Ib.shift
+            Ib_local = Ib-cat_Ib.shift
             for p in 1:ket.ansatz.no
                 Jb = cat_Ib.lookup[p,Ib_local]
                 Jb != 0 || continue
@@ -142,8 +147,8 @@ cat_Ib = cats_b[spin_pairs[m].pair[2]]
                 Jb_local = Jb-catb_p.shift
                 @views tdm_pqr = tdm[:,:,p]
                 @views v1_IJ = v1[n][:,Jb_local,:]
-@views v2_KL = v2[m][:,Ib_local,:]
-                if sign_p == 1
+                @views v2_KL = v2[m][:,Ib_local,:]
+                if sign_p*sgnK == 1
                     @tensor begin
                         tdm_pqr[s,t] += v1_IJ[K,s] * v2_KL[K,t]
                     end
@@ -211,7 +216,7 @@ function compute_operator_ca_aa(bra::Solution{RASCIAnsatz,T},
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-cat_Ia.shift
-            for p in 1:ket.ansatz.no, q in q:ket.ansatz.no
+            for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no
                 Ja = cat_Ia.lookup[q,p,Ia_local]
                 Ja != 0 || continue
                 sign_p = sign(Ja)
@@ -291,7 +296,7 @@ function compute_operator_ca_bb(bra::Solution{RASCIAnsatz,T},
     for m in 1:length(spin_pairs)
 cat_Ib = cats_b[spin_pairs[m].pair[2]]
         for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ia-cat_Ib.shift
+            Ib_local = Ib-cat_Ib.shift
             for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no
                 Jb = cat_Ib.lookup[q, p,Ib_local]
                 Jb != 0 || continue
@@ -378,7 +383,7 @@ function compute_operator_ca_ab(bra::Solution{RASCIAnsatz,T},
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
-        for Ia in cats_a_ca[spin_pairs[m].pair[1]].idxs
+        for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-cat_Ia.shift
             for p in 1:ket.ansatz.no
                 Ja = cat_Ia.lookup[p,Ia_local]
@@ -386,7 +391,7 @@ function compute_operator_ca_ab(bra::Solution{RASCIAnsatz,T},
                 sign_p = sign(Ja)
                 Ja = abs(Ja)
                 cata_p = find_cat(Ja, cats_a_bra)
-                for Ib in cats_b_ca[spin_pairs[m].pair[2]].idxs
+                for Ib in cats_b[spin_pairs[m].pair[2]].idxs
                     Ib_local = Ib-cat_Ib.shift
                     for q in 1:ket.ansatz.no
                         Jb = cat_Ib.lookup[q,Ib_local]
@@ -442,6 +447,9 @@ function compute_operator_cc_bb(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) c(KL,t) <J|<I|b'b'|K>|L>
     # c(IJ,s) c(KL,t) <I|K><J|b'b'|L>
     
+    bra_M = size(bra,2)
+    ket_M = size(ket,2)
+    
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra.ansatz, ket.ansatz, spin="alpha", type="no_op")
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra.ansatz, ket.ansatz, spin="beta", type="cc")
     spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(ket.ansatz, cats_a, cats_b)
@@ -469,7 +477,7 @@ function compute_operator_cc_bb(bra::Solution{RASCIAnsatz,T},
     for m in 1:length(spin_pairs)
 cat_Ib = cats_b[spin_pairs[m].pair[2]]
         for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ia-cat_Ib.shift
+            Ib_local = Ib-cat_Ib.shift
             for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no
                 Jb = cat_Ib.lookup[q, p,Ib_local]
                 Jb != 0 || continue
@@ -550,7 +558,7 @@ function compute_operator_cc_aa(bra::Solution{RASCIAnsatz,T},
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-cat_Ia.shift
-            for p in 1:ket.ansatz.no, q in q:ket.ansatz.no
+            for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no
                 Ja = cat_Ia.lookup[q,p,Ia_local]
                 Ja != 0 || continue
                 sign_p = sign(Ja)
@@ -636,7 +644,7 @@ function compute_operator_cc_ab(bra::Solution{RASCIAnsatz,T},
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
-        for Ia in cats_a_ca[spin_pairs[m].pair[1]].idxs
+        for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-cat_Ia.shift
             for p in 1:ket.ansatz.no
                 Ja = cat_Ia.lookup[p,Ia_local]
@@ -644,7 +652,7 @@ function compute_operator_cc_ab(bra::Solution{RASCIAnsatz,T},
                 sign_p = sign(Ja)
                 Ja = abs(Ja)
                 cata_p = find_cat(Ja, cats_a_bra)
-                for Ib in cats_b_ca[spin_pairs[m].pair[2]].idxs
+                for Ib in cats_b[spin_pairs[m].pair[2]].idxs
                     Ib_local = Ib-cat_Ib.shift
                     for q in 1:ket.ansatz.no
                         Jb = cat_Ib.lookup[q,Ib_local]
@@ -699,6 +707,8 @@ function compute_operator_cca_aaa(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) <IJ|a'a'a|KL> c(KL,t) = 
     # c(IJ,s) c(KL,t) <J|<I|a'a'a|K>|L>
     # c(IJ,s) c(KL,t) <J|L><I|a'a'a|K>   
+    bra_M = size(bra,2)
+    ket_M = size(ket,2)
     
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra.ansatz, ket.ansatz, spin="alpha", type="cca")
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra.ansatz, ket.ansatz, spin="beta", type="no_op")
@@ -721,8 +731,6 @@ function compute_operator_cca_aaa(bra::Solution{RASCIAnsatz,T},
         start += spin_pairs[m].dim
     end
     
-    bra_M = size(bra,2)
-    ket_M = size(ket,2)
 
     #   TDM[pqr,s,t] = 
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no, bra.ansatz.no, bra.ansatz.no)
@@ -732,7 +740,7 @@ function compute_operator_cca_aaa(bra::Solution{RASCIAnsatz,T},
         for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-cat_Ia.shift
             for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no, r in 1:ket.ansatz.no
-Ja = cat_Ia.lookup[r,q,p,Ia_local]
+                Ja = cat_Ia.lookup[r,q,p,Ia_local]
                 Ja != 0 || continue
                 sign_pqr = sign(Ja)
                 Ja = abs(Ja)
@@ -741,8 +749,8 @@ Ja = cat_Ia.lookup[r,q,p,Ia_local]
                 n != 0 || continue
                 Ja_local = Ja-cata_kl.shift
                 @views tdm_pqr = tdm[:,:,p,q,r] 
-                @views v1_IJ = v1[Ia_local,:,:]
-                @views v2_KL = v2[Ja_local,:,:]
+                @views v1_IJ = v1[n][Ja_local,:,:]
+                @views v2_KL = v2[m][Ia_local,:,:]
 
                 if sign_pqr == 1
                     @tensor begin 
@@ -781,6 +789,8 @@ function compute_operator_cca_bbb(bra::Solution{RASCIAnsatz,T},
     # c(IJ,s) <IJ|b'b'b|KL> c(KL,t) = 
     # c(IJ,s) c(KL,t) <J|<I|b'b'b|K>|L>
     # c(IJ,s) c(KL,t) <I|K><J|b'b'b|L> (-1)^ket.ansatz.na  
+    bra_M = size(bra,2)
+    ket_M = size(ket,2)
     
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra.ansatz, ket.ansatz, spin="alpha", type="no_op")
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra.ansatz, ket.ansatz, spin="beta", type="cca")
@@ -812,11 +822,11 @@ function compute_operator_cca_bbb(bra::Solution{RASCIAnsatz,T},
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no, bra.ansatz.no, bra.ansatz.no)
     
     for m in 1:length(spin_pairs)
-cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
         for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ia-cat_Ib.shift
-            for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no
-                Jb = cat_Ib.lookup[q,p,r,Ib_local]
+            Ib_local = Ib-cat_Ib.shift
+            for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no, r in 1:ket.ansatz.no
+                Jb = cat_Ib.lookup[r,q,p,Ib_local]
                 Jb != 0 || continue
                 sign_p = sign(Jb)
                 Jb = abs(Jb)
@@ -900,18 +910,18 @@ function compute_operator_cca_aba(bra::Solution{RASCIAnsatz,T},
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
-        for Ia in cats_a_ca[spin_pairs[m].pair[1]].idxs
+        for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-cat_Ia.shift
-            for p in 1:ket.ansatz.no, q in 1:ket.ansatz.no
-                Ja = cat_Ia.lookup[q,p,Ia_local]
+            for p in 1:ket.ansatz.no, r in 1:ket.ansatz.no
+                Ja = cat_Ia.lookup[r,p,Ia_local]
                 Ja != 0 || continue
                 sign_p = sign(Ja)
                 Ja = abs(Ja)
                 cata_p = find_cat(Ja, cats_a_bra)
-                for Ib in cats_b_ca[spin_pairs[m].pair[2]].idxs
+                for Ib in cats_b[spin_pairs[m].pair[2]].idxs
                     Ib_local = Ib-cat_Ib.shift
-                    for r in 1:ket.ansatz.no
-                        Jb = cat_Ib.lookup[r,Ib_local]
+                    for q in 1:ket.ansatz.no
+                        Jb = cat_Ib.lookup[q,Ib_local]
                         Jb != 0 || continue
                         sign_q = sign(Jb)
                         Jb = abs(Jb)
@@ -994,7 +1004,7 @@ function compute_operator_cca_abb(bra::Solution{RASCIAnsatz},
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
-        for Ia in cats_a_ca[spin_pairs[m].pair[1]].idxs
+        for Ia in cats_a[spin_pairs[m].pair[1]].idxs
             Ia_local = Ia-cat_Ia.shift
             for p in 1:ket.ansatz.no
                 Ja = cat_Ia.lookup[p,Ia_local]
@@ -1002,7 +1012,7 @@ function compute_operator_cca_abb(bra::Solution{RASCIAnsatz},
                 sign_p = sign(Ja)
                 Ja = abs(Ja)
                 cata_p = find_cat(Ja, cats_a_bra)
-                for Ib in cats_b_ca[spin_pairs[m].pair[2]].idxs
+                for Ib in cats_b[spin_pairs[m].pair[2]].idxs
                     Ib_local = Ib-cat_Ib.shift
                     for q in 1:ket.ansatz.no, r in 1:ket.ansatz.no
                         Jb = cat_Ib.lookup[r,q,Ib_local]
@@ -1017,7 +1027,7 @@ function compute_operator_cca_abb(bra::Solution{RASCIAnsatz},
                         @views tdm_pqr = tdm[:,:,p,q,r] 
                         @views v1_IJ = v1[n][Ja_local, Jb_local, :]
                         @views v2_KL = v2[m][Ia_local, Ib_local, :]
-                        sgn = sign_p*sign_q*sgnK
+                        sgn = sign_p*sign_q
                         if sgn == 1
                             @tensor begin 
                                 tdm_pqr[s,t] += v1_IJ[s] * v2_KL[t]

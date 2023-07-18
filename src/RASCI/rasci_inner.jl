@@ -123,7 +123,7 @@ end
 - `P`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
 """
 function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
-    #S2 = (S+S- + S-S+)1/2 + Sz.Sz
+    #S2 = (S+S- + S-S+)1/2 + Sz.Sz{{{
     #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
     #   do swaps and you can end up adding the two together to get rid
     #   of the 1/2 factor so 
@@ -230,7 +230,7 @@ function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
         starti += spin_pairs[m].dim
     end
     
-    return S2
+    return S2#=}}}=#
 end
 
 function S2_helper(P::RASCIAnsatz)
@@ -386,6 +386,47 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
 
     gkl = get_gkl(ints, prob) 
     
+    #for m in 1:length(spin_pairs)
+    #    cat_Ia = cats_a[spin_pairs[m].pair[1]]
+    #    for Ia in cats_a[spin_pairs[m].pair[1]].idxs
+    #        fill!(F,0.0)
+    #        comb_kl = 0
+    #        comb_ij = 0
+    #        Ia_local = Ia-cat_Ia.shift
+    #        for k in 1:prob.no, l in 1:prob.no
+    #            Ka = cat_Ia.lookup[l,k,Ia_local]
+    #            Ka != 0 || continue
+    #            sign_kl = sign(Ka)
+    #            Ka = abs(Ka)
+    #            @inbounds F[Ka] += sign_kl*gkl[k,l]
+    #            cata_kl = cats_a[cat_Ia.cat_lookup[l,k,Ia_local]]
+    #            comb_kl = (k-1)*prob.no + l
+    #            Ka_local = Ka-cata_kl.shift
+    #            for i in 1:prob.no, j in 1:prob.no
+    #                comb_ij = (i-1)*prob.no + j
+    #                if comb_ij < comb_kl
+    #                    continue
+    #                end
+    #                Ja = cata_kl.lookup[j,i,Ka_local]
+    #                Ja != 0 || continue
+    #                sign_ij = sign(Ja)
+    #                Ja = abs(Ja)
+    #                if comb_kl == comb_ij
+    #                    delta = 1
+    #                else
+    #                    delta = 0
+    #                end
+    #                if sign_kl == sign_ij
+    #                    F[Ja] += (ints.h2[i,j,k,l]*1/(1+delta))
+    #                else
+    #                    F[Ja] -= (ints.h2[i,j,k,l]*1/(1+delta))
+    #                end
+    #            end
+    #        end
+    #        _sum_spin_pairs!(sigma_two, v, F, Ia, cats_a, cats_b, spin_pairs, sigma="two")
+    #    end
+    #end
+    
     for Ia in 1:prob.dima
         fill!(F,0.0)
         comb_kl = 0
@@ -457,49 +498,44 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
         start += spin_pairs[m].dim
     end
     
-    for Ia in 1:prob.dima
-        cat_Ia = find_cat(Ia, cats_a)
-        #pair_Ia = find_spin_pair(spin_pairs, cat_Ia.idx, "alpha")
-        #Ia_local = Ia-spin_pairs[pair_Ia].ashift
-        Ia_local = Ia-cat_Ia.shift
-        for k in 1:prob.no, l in 1:prob.no
-            Ja = cat_Ia.lookup[l,k,Ia_local]
-            Ja != 0 || continue
-            sign_kl = sign(Ja)
-            Ja = abs(Ja)
-            hkl .= ints.h2[:,:,k,l]
-            cata_kl = find_cat(Ja, cats_a)
-            #pair_Ja = find_spin_pair(spin_pairs, cata_kl.idx, "alpha") 
-            #Ja_local = Ja-spin_pairs[pair_Ja].ashift
-            Ja_local = Ja-cata_kl.shift
-            for Ib in 1:prob.dimb
-                cat_Ib = find_cat(Ib, cats_b)
-                #pair_Ib = find_spin_pair(spin_pairs, cat_Ib.idx, "beta")
-                #Ib_local = Ib-spin_pairs[pair_Ib].bshift
-                Ib_local = Ib-cat_Ib.shift
-                for i in 1:prob.no, j in 1:prob.no
-                    Jb = cat_Ib.lookup[j,i,Ib_local]
-                    Jb != 0 || continue
-                    sign_ij = sign(Jb)
-                    Jb = abs(Jb)
-                    catb_ij = find_cat(Jb, cats_b)
-                    #pair_Jb = find_spin_pair(spin_pairs, catb_ij.idx, "beta") 
-                    #Jb_local = Jb-spin_pairs[pair_Jb].bshift
-                    Jb_local = Jb-catb_ij.shift
-                    if cat_Ib.idx in cat_Ia.connected
-                        if catb_ij.idx in cata_kl.connected
-                            m = find_spin_pair(spin_pairs, (cat_Ia.idx, cat_Ib.idx))
-                            n = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
-                            for si in 1:nroots
-                                sigma_three[m][Ia_local, Ib_local, si] += hkl[i,j]*v[n][Ja_local, Jb_local, si]*sign_ij*sign_kl
-                            end
+    for m in 1:length(spin_pairs)
+        cat_Ia = cats_a[spin_pairs[m].pair[1]]
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        for Ia in cats_a[spin_pairs[m].pair[1]].idxs
+            Ia_local = Ia-cat_Ia.shift
+            for k in 1:prob.no, l in 1:prob.no
+                Ja = cat_Ia.lookup[l,k,Ia_local]
+                Ja != 0 || continue
+                sign_kl = sign(Ja)
+                Ja = abs(Ja)
+                hkl .= ints.h2[:,:,k,l]
+                #cata_kl = find_cat(Ja, cats_a)
+                cata_kl = cats_a[cat_Ia.cat_lookup[l,k,Ia_local]]
+                for Ib in cats_b[spin_pairs[m].pair[2]].idxs
+                    Ib_local = Ib-cat_Ib.shift
+                    @views sig = sigma_three[m][Ia_local, Ib_local, :]
+                    for i in 1:prob.no, j in 1:prob.no
+                        Jb = cat_Ib.lookup[j,i,Ib_local]
+                        Jb != 0 || continue
+                        sign_ij = sign(Jb)
+                        Jb = abs(Jb)
+                        #catb_ij = find_cat(Jb, cats_b)
+                        catb_ij = cats_b[cat_Ib.cat_lookup[j,i,Ib_local]]
+                        n = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                        n != 0 || continue
+                        Jb_local = Jb-catb_ij.shift
+                        Ja_local = Ja-cata_kl.shift
+                        @views v2 = v[n][Ja_local, Jb_local, :]
+                        for si in 1:nroots
+                            @inbounds sig[si] += hkl[i,j]*v2[si]*sign_ij*sign_kl
+                            #sigma_three[m][Ia_local, Ib_local, si] += hkl[i,j]*v[n][Ja_local, Jb_local, si]*sign_ij*sign_kl
                         end
                     end
                 end
             end
         end
     end
-    
+
     start = 1
     sig = zeros(Float64, prob.ras_dim, nroots)
     for m in 1:n_spin_pairs
@@ -620,7 +656,7 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
 
     spin_pairs_ca, cats_a_ca, cats_b_ca = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)
 
-    rdm1a, rdm1b = ras_compute_1rdm(prob, C)
+    rdm1a, rdm1b = compute_1rdm(prob, C)
     rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2bb = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2ab = zeros(prob.no, prob.no, prob.no, prob.no)
@@ -839,7 +875,8 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
                 sort!(idxas)
                 lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
-                push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, shift, lu))
+                cat_lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
+                push!(all_cats, HP_Category_CA(j, cats_a[j], connected[j], idxas, shift, lu, cat_lu))
                 shift += length(idxas)
             end
 
@@ -1070,7 +1107,8 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
                 idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
                 sort!(idxbs)
                 lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
-                push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, shift, lu))
+                cat_lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
+                push!(all_cats, HP_Category_CA(j, cats_b[j], connected[j], idxbs, shift, lu, cat_lu))
                 shift += length(idxbs)
             end
 
@@ -1180,7 +1218,515 @@ function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
             end
             return all_cats_bra, all_cats        
        end
+    end#=}}}=#
+end
+
+"""
+    bubble_sort(arr)
+"""
+function bubble_sort(arr)
+    len = length(arr) #={{{=#
+    count = 0
+    # Traverse through all array elements
+    for i = 1:len-1
+        for j = 2:len
+        # Last i elements are already in place
+        # Swap if the element found is greater
+            if arr[j-1] > arr[j] 
+                count += 1
+                tmp = arr[j-1]
+                arr[j-1] = arr[j]
+                arr[j] = tmp
+            end
+        end
     end
+    return count, arr#=}}}=#
+end
+
+function apply_a(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+    idx_org = config_dict_ket[config]#={{{=#
+    cat_org = find_cat(idx_org, cats_ket)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+
+    spot = first(findall(x->x==orb, config))
+    new = Vector(config)
+    
+    splice!(new, spot)
+    if haskey(config_dict_bra, new)
+        idx = config_dict_bra[new]
+    else
+        return 1, 0, 0, 0
+    end
+
+    cat = find_cat(idx, cats_bra)
+    if cat == 0
+        return 1, 0, 0, 0
+    end
+
+    sign = 1 
+    if spot % 2 != 1
+        sign = -1
+    end
+    return sign, new, idx_local, idx#=}}}=#
+end
+
+function apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+    idx_org = config_dict_ket[config]#={{{=#
+    cat_org = find_cat(idx_org, cats_ket)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+
+    new = Vector(config)
+    insert_here = 1
+    
+    if isempty(config)
+        new = [orb]
+        sign_c = 1
+        
+        if haskey(config_dict_bra, new);
+            idx = config_dict[new]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, cats_bra)
+        if cat == 0
+            return 1, 0,0,0
+        end
+
+    else
+        for i in 1:length(config)
+            if config[i] > orb
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new, insert_here, orb)
+        if haskey(config_dict_bra, new);
+            idx = config_dict_bra[new]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, cats_bra)
+        if cat == 0
+            return 1, 0,0,0
+        end
+
+        sign_c = 1
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+    end
+    return sign_c, new, idx_local, idx#=}}}=#
+end
+
+function apply_ca(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+    idx_org = config_dict_ket[config]#={{{=#
+    cat_org = find_cat(idx_org, cats_ket)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+    
+    spot = first(findall(x->x==orb, config))
+    new = Vector(config)
+    splice!(new, spot)
+    
+    sign_a = 1 
+    if spot % 2 != 1
+        sign_a = -1
+    end
+    
+    if orb2 in new
+        return 1, 0, 0,0
+    end
+
+    insert_here = 1
+    new2 = Vector(new)
+    sign_c = 1
+    
+    if isempty(new)
+        new2 = [orb2]
+        
+        if haskey(config_dict_bra, new2);
+            idx = config_dict_bra[new2]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, cats_bra)
+        if cat == 0
+            return 1, 0,0,0
+        end
+
+    else
+        for i in 1:length(new)
+            if new[i] > orb2
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new2, insert_here, orb2)
+
+        sign_c = 1
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+
+        if haskey(config_dict_bra, new2);
+            idx = config_dict_bra[new2]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, cats_bra)
+        if cat == 0
+            return 1, 0,0,0
+        end
+    end
+
+    return sign_a*sign_c, new2, idx_local, idx#=}}}=#
+end
+
+function apply_cc(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+    idx_org = config_dict_ket[config]#={{{=#
+    cat_org = find_cat(idx_org, cats_ket)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+
+    new = Vector(config)
+    insert_here = 1
+    sign_c = 1
+    
+    if isempty(config)
+        new = [orb]
+        sign_c = 1
+
+    else
+        for i in 1:length(config)
+            if config[i] > orb
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new, insert_here, orb)
+
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+    end
+
+    insert_here = 1
+    new2 = Vector(new)
+    for i in 1:length(new)
+        if new[i] > orb2
+            insert_here = i
+            break
+        else
+            insert_here += 1
+        end
+    end
+
+    insert!(new2, insert_here, orb2)
+
+    sign_cc = 1
+    if insert_here % 2 != 1
+        sign_cc = -1
+    end
+    
+    if haskey(config_dict_bra, new2);
+        idx = config_dict_bra[new2]
+    else
+        return 1, 0, 0,0
+    end
+    cat = find_cat(idx, cats_bra)
+    if cat == 0
+        return 1, 0,0,0
+    end
+
+    return sign_c*sign_cc, new2, idx_local, idx#=}}}=#
+end
+
+function apply_cca(config, orb_a, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+    idx_org = config_dict_ket[config]#={{{=#
+    cat_org = find_cat(idx_org, cats_ket)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+
+    #apply annhilation
+    spot = first(findall(x->x==orb_a, config))
+    new_a = Vector(config)
+    splice!(new_a, spot)
+    sign_a = 1
+    if spot % 2 != 1
+        sign_a = -1
+    end
+    
+    #apply first creation
+    new = Vector(new_a)
+    insert_here = 1
+    sign_c = 1
+    
+    if isempty(new_a)
+        new = [orb]
+        sign_c = 1
+
+    else
+        for i in 1:length(new_a)
+            if new_a[i] > orb
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new, insert_here, orb)
+
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+    end
+    
+    #apply second creation
+    insert_here = 1
+    new2 = Vector(new)
+    for i in 1:length(new)
+        if new[i] > orb2
+            insert_here = i
+            break
+        else
+            insert_here += 1
+        end
+    end
+
+    insert!(new2, insert_here, orb2)
+
+    sign_cc = 1
+    if insert_here % 2 != 1
+        sign_cc = -1
+    end
+    
+    if haskey(config_dict_bra, new2);
+        idx = config_dict_bra[new2]
+    else
+        return 1, 0, 0,0
+    end
+    cat = find_cat(idx, cats_bra)
+    if cat == 0
+        return 1, 0,0,0
+    end
+
+    return sign_a*sign_c*sign_cc, new2, idx_local, idx#=}}}=#
+end
+
+function apply_ccaa(config, orb_a, orb_aa, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+    idx_org = config_dict_ket[config]#={{{=#
+    cat_org = find_cat(idx_org, cats_ket)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+
+    #apply first annhilation
+    spot = first(findall(x->x==orb_a, config))
+    new_a = Vector(config)
+    splice!(new_a, spot)
+    sign_a = 1
+    if spot % 2 != 1
+        sign_a = -1
+    end
+    
+    #apply second annhilation
+    spota = first(findall(x->x==orb_aa, new_a))
+    new_aa = Vector(new_a)
+    splice!(new_aa, spota)
+    sign_aa = 1
+    if spota % 2 != 1
+        sign_aa = -1
+    end
+    
+    #apply first creation
+    new = Vector(new_aa)
+    insert_here = 1
+    sign_c = 1
+    
+    if isempty(new_aa)
+        new = [orb]
+        sign_c = 1
+
+    else
+        for i in 1:length(new_aa)
+            if new_aa[i] > orb
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new, insert_here, orb)
+
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+    end
+    
+    #apply second creation
+    insert_here = 1
+    new2 = Vector(new)
+    for i in 1:length(new)
+        if new[i] > orb2
+            insert_here = i
+            break
+        else
+            insert_here += 1
+        end
+    end
+
+    insert!(new2, insert_here, orb2)
+
+    sign_cc = 1
+    if insert_here % 2 != 1
+        sign_cc = -1
+    end
+    
+    if haskey(config_dict_bra, new2);
+        idx = config_dict_bra[new2]
+    else
+        return 1, 0, 0,0
+    end
+    cat = find_cat(idx, cats_bra)
+    if cat == 0
+        return 1, 0,0,0
+    end
+
+    return sign_a*sign_aa*sign_c*sign_cc, new2, idx_local, idx#=}}}=#
+end
+
+"""
+"""
+function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories::Vector{HP_Category_CA})
+    #println("Config: ", config)
+    #println(a_orb, " : ", c_orb)
+    idx_org = config_dict[config]
+    cat_org = find_cat(idx_org, categories)
+    idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
+
+    spot = first(findall(x->x==a_orb, config))#={{{=#
+    new = Vector(config)
+    splice!(new, spot)
+    
+    sign_a = 1 
+    if spot % 2 != 1
+        sign_a = -1
+    end
+    
+    if c_orb in new
+        return 1, 0, 0,0
+    end
+
+    insert_here = 1
+    new2 = Vector(new)
+
+    if isempty(new)
+        new2 = [c_orb]
+        sign_c = 1
+        #println("New config: ", new2)
+        
+        if haskey(config_dict, new2);
+            idx = config_dict[new2]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, categories)
+        if cat == 0
+            return 1, 0,0,0
+        end
+
+    else
+        for i in 1:length(new)
+            if new[i] > c_orb
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new2, insert_here, c_orb)
+        #println("New config: ", new2)
+
+        if haskey(config_dict, new2);
+            idx = config_dict[new2]
+        else
+            return 1, 0, 0,0
+        end
+        cat = find_cat(idx, categories)
+        if cat == 0
+            return 1, 0,0,0
+        end
+
+
+        sign_c = 1
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+    end
+
+    return sign_c*sign_a, new2, idx_local, idx#=}}}=#
+    #return sign_c*sign_a, new2, idx#=}}}=#
+end
+
+"""
+    get_gkl(ints::InCoreInts, prob::RASCIAnsatz)
+"""
+function get_gkl(ints::InCoreInts, prob::RASCIAnsatz)
+    hkl = zeros(prob.no, prob.no)#={{{=#
+    hkl .= ints.h1
+    gkl = zeros(prob.no, prob.no)
+    for k in 1:prob.no
+        for l in 1:prob.no
+            gkl[k,l] += hkl[k,l]
+            x = 0
+            for j in 1:prob.no
+                if j < k
+                    x += ints.h2[k,j,j,l]
+                end
+            end
+            gkl[k,l] -= x
+            if k >= l 
+                if k == l
+                    delta = 1
+                else
+                    delta = 0
+                end
+                gkl[k,l] -= ints.h2[k,k,k,l]*1/(1+delta)
+            end
+        end
+    end#=}}}=#
+    return gkl
+end
+
+# Returns a node dictionary where keys are configs and values are the indexes
+function old_dfs(nelecs, connect, weights, start, max, visited=Vector(zeros(max)), path=[], nodes=Dict{Vector{Int32}, Int64}())
+    visited[start] = true#={{{=#
+    push!(path, start)
+    if start == max
+        #get config,index, add to nodes dictonary
+        index, config = get_index(nelecs, path, weights)
+        #push!(idxs, index)
+        #nodes[index] = config
+        nodes[config] = index
+    else
+        for i in connect[start]
+            if visited[i]==false
+                old_dfs(nelecs, connect, weights,i,max,visited,path,nodes)
+            end
+        end
+    end
+
+    #remove current vertex from path and mark as unvisited
+    pop!(path)
+    visited[start]=false
+    return nodes#=}}}=#
 end
     
 
@@ -1201,4 +1747,6 @@ end
 
 
     
+
+
 

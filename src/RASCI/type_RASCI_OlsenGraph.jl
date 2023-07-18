@@ -149,7 +149,7 @@ function dfs_no_operation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, m
     return lu, lus#=}}}=#
 end
 
-function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, categories, config_dict, visited=Vector(zeros(max)), path=[])
+function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, cat_lu, categories, config_dict, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
     if start == max
@@ -167,12 +167,14 @@ function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, categories
                     continue
                 end
                 lu[orb, orb_c, idx_loc] = sgn*idx
+                new_cat = find_cat(idx, categories)
+                cat_lu[orb, orb_c, idx_loc] = new_cat.idx
             end
         end
     else
         for i in ket.connect[start]
             if visited[i]==false
-                dfs_single_excitation(ket, i,max, lu, categories, config_dict, visited, path)
+                dfs_single_excitation(ket, i,max, lu, cat_lu, categories, config_dict, visited, path)
             end
         end
     end
@@ -180,7 +182,7 @@ function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, categories
     #remove current vertex from path and mark as unvisited
     pop!(path)
     visited[start]=false
-    return lu#=}}}=#
+    return lu, cat_lu#=}}}=#
 end
 
 function dfs_a(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])

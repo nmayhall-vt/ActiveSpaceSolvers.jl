@@ -139,8 +139,7 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
     function mymatvec(v)
         iters += 1
         #@printf(" Iter: %4i", iters)
-        #print("Iter: ", iters, " ")
-        #@printf(" %-50s", "Compute sigma 1: ")
+        print("Iter: ", iters, " ")
         #flush(stdout)
         #display(size(v))
        
@@ -208,7 +207,8 @@ function calc_ras_dim(prob::RASCIAnsatz)
         graph_a = make_cat_graphs(fock_list_a[j], prob)
         idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
         lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
-        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected[j], idxas, 0, lu))
+        cat_lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
+        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected[j], idxas, 0, lu, cat_lu))
 
     end
         
@@ -224,7 +224,8 @@ function calc_ras_dim(prob::RASCIAnsatz)
         graph_b = make_cat_graphs(fock_list_b[j], prob)
         idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
         lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
-        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs,0, lu))
+        cat_lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
+        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs,0, lu, cat_lu))
     end
 
     count = 0

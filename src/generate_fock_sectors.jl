@@ -31,7 +31,7 @@ function generate_cluster_fock_ansatze( ref_fock,
                 ansatz_i = FCIAnsatz(init_cluster_ansatz[i].no, Int(naj), Int(nbj))
                 push!(sectors, ansatz_i)
             elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz
-                ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, init_cluster_ansatz[i].ras1_min, init_cluster_ansatz[i].ras3_max)
+                ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
                 display(ansatz_i)
                 push!(sectors, ansatz_i)
             else

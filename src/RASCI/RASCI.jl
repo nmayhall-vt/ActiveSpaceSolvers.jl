@@ -10,7 +10,6 @@ include("type_RASCI_OlsenGraph.jl");
 include("type_HP_Category.jl");
 include("type_SpinPairs.jl");
 include("TDMs.jl");
-include("inner.jl");
 include("rasci_inner.jl");
 
 # import stuff so we can extend and export
