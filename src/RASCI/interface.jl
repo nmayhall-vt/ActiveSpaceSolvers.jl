@@ -442,7 +442,18 @@ end
 Build the Hamiltonian defined by `ints` in the Slater Determinant Basis  specified by `P`
 """
 function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, p::RASCIAnsatz)
-    return ActiveSpaceSolvers.RASCI.build_H_matrix(ints::InCoreInts, p::RASCIAnsatz)
+    spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(p)
+    nr = p.ras_dim
+    v = Matrix(1.0I, nr, nr)
+    sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(p, spin_pairs, a_categories, b_categories, ints, v)
+    sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(p, spin_pairs, a_categories, b_categories, ints, v)
+    sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(p, spin_pairs, a_categories, b_categories, ints, v)
+
+    sig = sigma1 + sigma2 + sigma3
+
+    Hmat = .5*(sig+sig')
+    Hmat += 1.0I*ints.h0
+    return Hmat
 end
 
 """

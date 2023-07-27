@@ -119,7 +119,7 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz)
 end
 
 """
-    apply_S2_matrix(P::RASCIAnsatz, v::AbstractArray{T}) where {T}
+    apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where {T}
 - `P`: RASCIAnsatz just defines the current CI ansatz (i.e., ras_spaces sector)
 """
 function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
@@ -233,6 +233,11 @@ function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
     return S2#=}}}=#
 end
 
+"""
+    S2_helper(P::RASCIAnsatz)
+
+A helper function for apply_S2_matrix
+"""
 function S2_helper(P::RASCIAnsatz)
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(P)#={{{=#
     all_cats_a = Vector{HP_Category_CA}()
@@ -299,6 +304,11 @@ function S2_helper(P::RASCIAnsatz)
     return as, bs, rev_as, rev_bs, all_cats_a, all_cats_b
 end
 
+"""
+    sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
+
+Compute only beta spin contributions to sigma, σ = H|v>
+"""
 function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
     sigma_one = Dict{Int, Array{Float64,3}}()#={{{=#
     v = Dict{Int, Array{Float64, 3}}()
@@ -369,6 +379,11 @@ function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
     return sig#=}}}=#
 end
 
+"""
+    sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
+
+Compute only alpha spin contributions to sigma, σ = H|v>
+"""
 function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
     sigma_two = Dict{Int, Array{Float64,3}}()#={{{=#
     v = Dict{Int, Array{Float64, 3}}()
@@ -386,47 +401,6 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
 
     gkl = get_gkl(ints, prob) 
     
-    #for m in 1:length(spin_pairs)
-    #    cat_Ia = cats_a[spin_pairs[m].pair[1]]
-    #    for Ia in cats_a[spin_pairs[m].pair[1]].idxs
-    #        fill!(F,0.0)
-    #        comb_kl = 0
-    #        comb_ij = 0
-    #        Ia_local = Ia-cat_Ia.shift
-    #        for k in 1:prob.no, l in 1:prob.no
-    #            Ka = cat_Ia.lookup[l,k,Ia_local]
-    #            Ka != 0 || continue
-    #            sign_kl = sign(Ka)
-    #            Ka = abs(Ka)
-    #            @inbounds F[Ka] += sign_kl*gkl[k,l]
-    #            cata_kl = cats_a[cat_Ia.cat_lookup[l,k,Ia_local]]
-    #            comb_kl = (k-1)*prob.no + l
-    #            Ka_local = Ka-cata_kl.shift
-    #            for i in 1:prob.no, j in 1:prob.no
-    #                comb_ij = (i-1)*prob.no + j
-    #                if comb_ij < comb_kl
-    #                    continue
-    #                end
-    #                Ja = cata_kl.lookup[j,i,Ka_local]
-    #                Ja != 0 || continue
-    #                sign_ij = sign(Ja)
-    #                Ja = abs(Ja)
-    #                if comb_kl == comb_ij
-    #                    delta = 1
-    #                else
-    #                    delta = 0
-    #                end
-    #                if sign_kl == sign_ij
-    #                    F[Ja] += (ints.h2[i,j,k,l]*1/(1+delta))
-    #                else
-    #                    F[Ja] -= (ints.h2[i,j,k,l]*1/(1+delta))
-    #                end
-    #            end
-    #        end
-    #        _sum_spin_pairs!(sigma_two, v, F, Ia, cats_a, cats_b, spin_pairs, sigma="two")
-    #    end
-    #end
-    
     for Ia in 1:prob.dima
         fill!(F,0.0)
         comb_kl = 0
@@ -443,8 +417,6 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
             @inbounds F[Ka] += sign_kl*gkl[k,l]
             cata_kl = find_cat(Ka, cats_a)
             comb_kl = (k-1)*prob.no + l
-            #pair_Ka = find_spin_pair(spin_pairs, cata_kl.idx, "alpha") 
-            #Ka_local = Ka-spin_pairs[pair_Ka].ashift
             Ka_local = Ka-cata_kl.shift
 
             for i in 1:prob.no, j in 1:prob.no
@@ -481,6 +453,11 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
     return sig#=}}}=#
 end
 
+"""
+    sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
+
+Compute both alpha and beta single excitation contributions to sigma, σ = H|v>
+"""
 function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, ints::InCoreInts, C)
     sigma_three = Dict{Int, Array{Float64,3}}()#={{{=#
     v = Dict{Int, Array{Float64, 3}}()
@@ -546,6 +523,11 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
     return sig#=}}}=#
 end
 
+"""
+    _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, F::Vector{T}, I::Int, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, spin_pairs::Vector{Spin_Pair}; sigma="one") where {T}
+
+Speeds up sigma_one and sigma_two contractions
+"""
 function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, F::Vector{T}, I::Int, cats_a::Vector{HP_Category_CA}, cats_b::Vector{HP_Category_CA}, spin_pairs::Vector{Spin_Pair}; sigma="one") where {T}
     n_roots = size(v[1],3)#={{{=#
 
@@ -594,6 +576,11 @@ function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, 
     end#=}}}=#
 end
 
+"""
+    compute_1rdm(prob::RASCIAnsatz, C::Vector)
+
+Computes the 1-particle reduced density matrix for each spin, <ψ|p'q|ψ>
+"""
 function compute_1rdm(prob::RASCIAnsatz, C::Vector)
     spin_pairs, cats_a, cats_b = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)#={{{=#
     rdm1a = zeros(prob.no, prob.no)
@@ -648,6 +635,11 @@ function compute_1rdm(prob::RASCIAnsatz, C::Vector)
     return rdm1a, rdm1b#=}}}=#
 end
 
+"""
+    compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+
+Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
+"""
 function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")#={{{=#
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="beta", type="ccaa")
@@ -742,6 +734,11 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
     return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
 end
 
+"""
+    fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
+
+Fills all types of HP categories, used mainly when TDMs are computed
+"""
 function fill_lu_HP(bra::RASCIAnsatz, ket::RASCIAnsatz; spin="alpha", type="c")
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(ket)#={{{=#
     all_cats = Vector{HP_Category}()
@@ -1223,6 +1220,8 @@ end
 
 """
     bubble_sort(arr)
+
+Normal orders occupation strings and returns number of swaps used to determine the sign
 """
 function bubble_sort(arr)
     len = length(arr) #={{{=#
@@ -1243,6 +1242,11 @@ function bubble_sort(arr)
     return count, arr#=}}}=#
 end
 
+"""
+    apply_a(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+
+Apply annhilation operator, used in dfs_a() in type_RASCI_OlsenGraph.jl
+"""
 function apply_a(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
     idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
@@ -1270,6 +1274,11 @@ function apply_a(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector
     return sign, new, idx_local, idx#=}}}=#
 end
 
+"""
+    apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+
+Apply creation operator, used in dfs_c() in type_RASCI_OlsenGraph.jl
+"""
 function apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
     idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
@@ -1321,6 +1330,11 @@ function apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector
     return sign_c, new, idx_local, idx#=}}}=#
 end
 
+"""
+    apply_ca(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+
+Apply creation-annhilation pair operator, used in dfs_ca() in type_RASCI_OlsenGraph.jl
+"""
 function apply_ca(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
     idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
@@ -1387,6 +1401,11 @@ function apply_ca(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket:
     return sign_a*sign_c, new2, idx_local, idx#=}}}=#
 end
 
+"""
+    apply_cc(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+
+Apply creation-creation pair operator, used in dfs_cc() in type_RASCI_OlsenGraph.jl
+"""
 function apply_cc(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
     idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
@@ -1448,6 +1467,11 @@ function apply_cc(config, orb, orb2, config_dict_ket, config_dict_bra, cats_ket:
     return sign_c*sign_cc, new2, idx_local, idx#=}}}=#
 end
 
+"""
+    apply_cca(config, orb_a, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+
+Apply creation-creation-annhilation operators, used in dfs_cca() in type_RASCI_OlsenGraph.jl
+"""
 function apply_cca(config, orb_a, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
     idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
@@ -1520,6 +1544,11 @@ function apply_cca(config, orb_a, orb, orb2, config_dict_ket, config_dict_bra, c
     return sign_a*sign_c*sign_cc, new2, idx_local, idx#=}}}=#
 end
 
+"""
+    apply_ccaa(config, orb_a, orb_aa, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
+
+Apply creation-creation-annhilation-annhilation operators, used in dfs_ccaa() in type_RASCI_OlsenGraph.jl, only used for 2rdms
+"""
 function apply_ccaa(config, orb_a, orb_aa, orb, orb2, config_dict_ket, config_dict_bra, cats_ket::Vector{<:HP_Category}, cats_bra::Vector{<:HP_Category})
     idx_org = config_dict_ket[config]#={{{=#
     cat_org = find_cat(idx_org, cats_ket)
@@ -1602,6 +1631,8 @@ function apply_ccaa(config, orb_a, orb_aa, orb, orb2, config_dict_ket, config_di
 end
 
 """
+    apply_single_excitation!(config, a_orb, c_orb, config_dict, categories::Vector{HP_Category_CA})
+
 """
 function apply_single_excitation!(config, a_orb, c_orb, config_dict, categories::Vector{HP_Category_CA})
     #println("Config: ", config)
@@ -1677,6 +1708,8 @@ end
 
 """
     get_gkl(ints::InCoreInts, prob::RASCIAnsatz)
+
+Used in sigma_one and sigma_two to get an instance of the two electron integrals
 """
 function get_gkl(ints::InCoreInts, prob::RASCIAnsatz)
     hkl = zeros(prob.no, prob.no)#={{{=#
@@ -1705,48 +1738,19 @@ function get_gkl(ints::InCoreInts, prob::RASCIAnsatz)
     return gkl
 end
 
-# Returns a node dictionary where keys are configs and values are the indexes
-function old_dfs(nelecs, connect, weights, start, max, visited=Vector(zeros(max)), path=[], nodes=Dict{Vector{Int32}, Int64}())
-    visited[start] = true#={{{=#
-    push!(path, start)
-    if start == max
-        #get config,index, add to nodes dictonary
-        index, config = get_index(nelecs, path, weights)
-        #push!(idxs, index)
-        #nodes[index] = config
-        nodes[config] = index
-    else
-        for i in connect[start]
-            if visited[i]==false
-                old_dfs(nelecs, connect, weights,i,max,visited,path,nodes)
-            end
-        end
-    end
-
-    #remove current vertex from path and mark as unvisited
-    pop!(path)
-    visited[start]=false
-    return nodes#=}}}=#
+"""
+    make_rasorbs(rasi_orbs, rasiii_orbs, norbs, frozen_core=false)
+"""
+function make_rasorbs(rasi_orbs, rasii_orbs, rasiii_orbs, norbs, frozen_core=false)
+    if frozen_core==false#={{{=#
+        i_orbs = [1:1:rasi_orbs;]
+        start2 = rasi_orbs+1
+        end2 = start2+rasii_orbs-1
+        ii_orbs = [start2:1:end2;]
+        start = norbs-rasiii_orbs+1
+        iii_orbs = [start:1:norbs;]
+        return i_orbs, ii_orbs, iii_orbs
+    end#=}}}=#
 end
-    
-
-
-
-
-    
-
-    
-
-
-
-
-
-
-
-
-
-
-    
-
 
 

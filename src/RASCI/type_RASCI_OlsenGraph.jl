@@ -12,10 +12,19 @@ struct RASCI_OlsenGraph
     weights::Dict{Tuple{Int32, Int32}, Int32}
 end
 
+"""
+    RASCI_OlsenGraph()
+
+Creates an empty OlsenGraph type
+"""
 function RASCI_OlsenGraph()
     return RASCI_OlsenGraph(1,1,SVector(1,1,1), 1, 1, 1, Array{Int32}(undef, 0, 0), Dict{Int32, Vector{Int32}}(), Dict{Tuple{Int32, Int32}, Int32}())
 end
 
+"""
+    RASCI_OlsenGraph(no, ne, spaces, ras1_min=0, ras3_max=spaces[3])
+
+"""
 function RASCI_OlsenGraph(no, ne, spaces, ras1_min=0, ras3_max=spaces[3])
     spaces = convert(SVector{3,Int},collect(spaces))
     x = make_ras_x(no, ne, spaces, ras1_min, ras3_max)
@@ -31,31 +40,25 @@ function calc_ndets(no, nelec, ras_spaces, ras1_min, ras3_max)
     return dim_x
 end
 
-function dfs_creation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
+"""
+    old_dfs(nelecs, connect, weights, start, max, visited=Vector(zeros(max)), path=[], nodes=Dict{Vector{Int32}, Int64}())
+
+Does a depth first search in the originial way I coded up, still in use
+"""
+function old_dfs(nelecs, connect, weights, start, max, visited=Vector(zeros(max)), path=[], nodes=Dict{Vector{Int32}, Int64}())
+    # Returns a node dictionary where keys are configs and values are the indexes
     visited[start] = true#={{{=#
     push!(path, start)
     if start == max
         #get config,index, add to nodes dictonary
-        index, config = get_index(ket.ne, path, ket.weights)
-
-        for orb in 1:bra.no
-            if orb in config
-                continue
-            else
-                signa, conf = ActiveSpaceSolvers.RASCI.apply_creation!(config, orb, bra, must_obey)
-                if conf == 0
-                    continue
-                end
-
-                idxa = get_path_then_index(conf, bra)
-                lu[index, orb] = idxa
-                lus[index, orb] = signa
-            end
-        end
+        index, config = get_index(nelecs, path, weights)
+        #push!(idxs, index)
+        #nodes[index] = config
+        nodes[config] = index
     else
-        for i in ket.connect[start]
+        for i in connect[start]
             if visited[i]==false
-                dfs_creation(ket, bra, i,max, lu, lus, must_obey, visited, path)
+                old_dfs(nelecs, connect, weights,i,max,visited,path,nodes)
             end
         end
     end
@@ -63,92 +66,14 @@ function dfs_creation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, max, 
     #remove current vertex from path and mark as unvisited
     pop!(path)
     visited[start]=false
-    return lu, lus#=}}}=#
+    return nodes#=}}}=#
 end
 
-function dfs_annhilation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
-    visited[start] = true#={{{=#
-    push!(path, start)
-    if start == max
-        #get config,index, add to nodes dictonary
-        index, config = get_index(ket.ne, path, ket.weights)
-        for orb in config
-            signa, conf = ActiveSpaceSolvers.RASCI.apply_annhilation!(config, orb, bra, must_obey)
-            if conf == 0
-                continue
-            end
-            idxa = get_path_then_index(conf, bra)
-            lu[index, orb] = idxa
-            lus[index, orb] = signa
-        end
-    else
-        for i in ket.connect[start]
-            if visited[i]==false
-                dfs_annhilation(ket, bra, i,max, lu, lus, must_obey, visited, path)
-            end
-        end
-    end
+"""
+    dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, cat_lu, categories, config_dict, visited=Vector(zeros(max)), path=[])
 
-    #remove current vertex from path and mark as unvisited
-    pop!(path)
-    visited[start]=false
-    return lu, lus#=}}}=#
-end
-
-function dfs_no_operation(ket::RASCI_OlsenGraph, bra::RASCI_OlsenGraph, start, max, lu, lus, must_obey::Bool, visited=Vector(zeros(max)), path=[])
-    visited[start] = true#={{{=#
-    push!(path, start)
-    if start == max
-        #get config,index, add to nodes dictonary
-        index, config = get_index(ket.ne, path, ket.weights)
-        #println("config: ", config)
-        #println("index in ket graph: ", index)
-        
-        #is config in bra graph?
-        i_orbs, ii_orbs, iii_orbs = RASCI.make_rasorbs(bra.spaces[1], bra.spaces[2], bra.spaces[3], bra.no)
-        pass = true
-        #check RAS1 parameters
-        if bra.ras1_min != 0
-            if length(intersect(Set(i_orbs), Set(config))) < bra.ras1_min
-                #unallowed config in bra graph
-                idx = 0
-                pass = false
-                println("shouldnt be here")
-            end
-        end
-        
-        #check RAS3 parameters
-        if length(intersect(Set(iii_orbs), Set(config))) > bra.ras3_max
-            #unallowed config in bra graph
-            idx = 0
-            pass = false
-            println("shouldnt be here 2")
-        end
-        
-        if pass == true
-            idx = get_path_then_index(config, bra)
-        end
-
-        
-        for orb in 1:bra.no
-        #for orb in config
-            lu[index, orb] = idx
-            lus[index, orb] = 1
-        end
-    else
-        for i in ket.connect[start]
-            if visited[i]==false
-                dfs_no_operation(ket, bra, i,max, lu, lus, must_obey, visited, path)
-            end
-        end
-    end
-
-    #remove current vertex from path and mark as unvisited
-    pop!(path)
-    visited[start]=false
-    return lu, lus#=}}}=#
-end
-
+Does a depth-first search to find string configurations then applys a single excitation to fill the lookup table
+"""
 function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, cat_lu, categories, config_dict, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -185,6 +110,11 @@ function dfs_single_excitation(ket::RASCI_OlsenGraph, start, max, lu, cat_lu, ca
     return lu, cat_lu#=}}}=#
 end
 
+"""
+    dfs_a(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+
+Does a depth-first search to find string configurations then applys an annhilation operator to fill the lookup table
+"""
 function dfs_a(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -214,6 +144,11 @@ function dfs_a(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories
     return lu#=}}}=#
 end
 
+"""
+    dfs_c(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+
+Does a depth-first search to find string configurations then applys a creation operator to fill the lookup table
+"""
 function dfs_c(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -246,6 +181,11 @@ function dfs_c(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories
     return lu#=}}}=#
 end
 
+"""
+    dfs_ca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+
+Does a depth-first search to find string configurations then applys a creation-annhilation pair of operators to fill the lookup table
+"""
 function dfs_ca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -275,6 +215,11 @@ function dfs_ca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categorie
     return lu#=}}}=#
 end
 
+"""
+    dfs_cc(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+
+Does a depth-first search to find string configurations then applys a creation-creation pair of operators to fill the lookup table
+"""
 function dfs_cc(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -312,6 +257,11 @@ function dfs_cc(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categorie
     return lu#=}}}=#
 end
 
+"""
+    dfs_cca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+
+Does a depth-first search to find string configurations then applys a creation-creation-annhilation set of operators to fill the lookup table
+"""
 function dfs_cca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -352,6 +302,11 @@ function dfs_cca(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categori
     return lu#=}}}=#
 end
 
+"""
+    dfs_ccaa(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
+
+Does a depth-first search to find string configurations then applys a creation-creation-annhilation-annhilation set of operators to fill the lookup table
+"""
 function dfs_ccaa(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categories_bra, config_dict_ket, config_dict_bra, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -398,6 +353,11 @@ function dfs_ccaa(ket::RASCI_OlsenGraph, start, max, lu, categories_ket, categor
     return lu#=}}}=#
 end
 
+"""
+    dfs_fill_idxs(ket::RASCI_OlsenGraph, start, max, idxs, config_dict, visited=Vector(zeros(max)), path=[])
+
+Used to filld idxs information during the creation of the HP_Category structs
+"""
 function dfs_fill_idxs(ket::RASCI_OlsenGraph, start, max, idxs, config_dict, visited=Vector(zeros(max)), path=[])
     visited[start] = true#={{{=#
     push!(path, start)
@@ -505,56 +465,11 @@ function get_path_then_index(config, graph::RASCI_OlsenGraph)
     return index#=}}}=#
 end
 
-function get_annhilation(no, ne, n0::RASCI_OlsenGraph, must_obey::Bool)
-    if ne-1 < 0#={{{=#
-        error("Can not apply annhiliation")
-    end
+"""
+    make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=0, ras3_max=ras_spaces[3])
 
-    n1 = ActiveSpaceSolvers.RASCI.RASCI_OlsenGraph(no, ne-1, n0.spaces, 0, n0.spaces[3])
-    dim = ActiveSpaceSolvers.RASCI.calc_ndets(no, ne, n1.spaces, n1.ras1_min, n1.ras3_max)
-    lu = zeros(Int64, dim, no)
-    lus = zeros(Int8, dim, no)
-    lu, lus = dfs_annhilation(n0, n1, 1, n0.max, lu, lus, must_obey)
-    return lu, lus#=}}}=#
-end
-
-function get_creation(no, ne, g_oneless::RASCI_OlsenGraph, g_org::RASCI_OlsenGraph, must_obey::Bool)
-    #={{{=#
-    n0 = RASCI_OlsenGraph(no, ne, g_oneless.spaces, g_oneless.ras1_min, g_oneless.ras3_max)
-
-    if must_obey == true
-        n1 = RASCI_OlsenGraph(no, ne+1, g_org.spaces, g_org.ras1_min, g_org.ras3_max)
-    else
-        n1 = RASCI_OlsenGraph(no, ne+1, g_org.spaces, 0, g_org.spaces[3])
-    end
-    
-    dim = calc_ndets(no, ne, g_oneless.spaces, 0, g_oneless.spaces[3])
-    lu = zeros(Int64, dim, no)
-    lus = zeros(Int8, dim, no)
-    lu, lus = dfs_creation(n0,  n1, 1, n0.max, lu, lus, must_obey)
-    return lu, lus#=}}}=#
-end
-
-function fill_lu(norb::Int, nelec::Int, g::RASCI_OlsenGraph)
-    if nelec > 0 #={{{=#
-        a_lu, a_lus = get_annhilation(norb, nelec, g, false)
-        g_oneless = RASCI_OlsenGraph(norb, nelec-1, g.spaces, 0, g.spaces[3])
-        c_lu, c_lus = get_creation(norb, nelec-1, g_oneless, g, true)
-    else
-        return nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing
-    end
-
-    if nelec-1 > 0
-        g_oneless = RASCI_OlsenGraph(norb, nelec-1, g.spaces, 0, g.spaces[3])
-        aa_lu, aa_lus = get_annhilation(norb, nelec-1, g_oneless, false)
-        g_twoless = RASCI_OlsenGraph(norb, nelec-2, g.spaces, 0, g.spaces[3])
-        cc_lu, cc_lus = get_creation(norb, nelec-2, g_twoless, g, false)
-    else
-        return a_lu, a_lus, nothing, nothing, c_lu, c_lus, nothing, nothing
-    end
-    return a_lu, a_lus, aa_lu, aa_lus, c_lu, c_lus, cc_lu, cc_lus#=}}}=#
-end
-
+Makes x matrix in the GRMS method to help with indexing and finding configurations
+"""
 function make_ras_x(norbs, nelec, ras_spaces::SVector{3, Int}, ras1_min=0, ras3_max=ras_spaces[3])
     n_unocc = (norbs-nelec)+1#={{{=#
     x = zeros(Int, n_unocc, nelec+1)
@@ -657,6 +572,11 @@ function update_x!(x, loc)
     end#=}}}=#
 end
 
+"""
+    make_ras_y(x)
+
+Makes y matrix from x matrix in GRMS method
+"""
 function make_ras_y(x)
     y = x#={{{=#
     y = vcat(zeros(Int, (1, size(x)[2])), x)
@@ -671,6 +591,11 @@ function make_ras_y(x)
     return y#=}}}=#
 end
 
+"""
+    make_graph_dict(y,vert)
+
+Used in the older version of the depth first search algorithm
+"""
 function make_graph_dict(y,vert)
     connect = Dict{Int32, Vector{Int32}}() #key: node, value: ones its connected to{{{
     weights = Dict{Tuple{Int32, Int32}, Int32}()     #key: Tuple(node1, node2), value: arc weight between nodes 1 and 2
@@ -709,6 +634,11 @@ function make_graph_dict(y,vert)
     return connect, weights#=}}}=#
 end
 
+"""
+    make_vert_graph_ras(x)
+
+Used in the older version of the depth-first search algorithm
+"""
 function make_vert_graph_ras(x)
     vert = Array{Int16}(zeros(size(x)))#={{{=#
     count = 1
@@ -724,6 +654,10 @@ function make_vert_graph_ras(x)
     return vert, max_val#=}}}=#
 end
 
+"""
+    get_index(nelecs, path, weights)
+
+"""
 function get_index(nelecs, path, weights)
     index = 1 #={{{=#
     config = Vector{Int32}(zeros(nelecs))
@@ -740,6 +674,10 @@ function get_index(nelecs, path, weights)
 end
 
 # Returns a node dictionary where keys are configs and values are the indexes
+"""
+    make_ras_dict(y,vert)
+
+"""
 function make_ras_dict(y,vert)
     graph = Dict()#={{{=#
     for row in 1:size(y)[1]
@@ -778,27 +716,10 @@ function make_ras_dict(y,vert)
     return graph#=}}}=#
 end
 
-function dfs_ras(nelecs, graph, start, max, visited=Vector(zeros(max)), path=[], nodes=Dict())
-    visited[start] = true#={{{=#
-    push!(path, start)
-    if start == max
-        #get config,index, add to nodes dictonary
-        index, config = get_index_ras(nelecs, path, graph)
-        nodes[config] = index
-    else
-        for i in graph[start]
-            if visited[i]==false
-                dfs_ras(nelecs,graph,i,max,visited,path,nodes)
-            end
-        end
-    end
+"""
+    get_index_ras(nelecs, path, graph)
 
-    #remove current vertex from path and mark as unvisited
-    pop!(path)
-    visited[start]=false
-    return nodes#=}}}=#
-end
-
+"""
 function get_index_ras(nelecs, path, graph)
     index = 1#={{{=#
     config = Vector{Int}(zeros(nelecs))
