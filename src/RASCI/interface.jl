@@ -18,16 +18,10 @@ Type containing all the metadata needed to define a RASCI problem
     dima::Int 
     dimb::Int 
     dim::Int
-    converged::Bool
-    restarted::Bool
-    iteration::Int
-    algorithm::String   #  options: direct/davidson
-    n_roots::Int
-    ras_spaces::SVector{3, Int}   #fock sector orbitals (RAS1, RAS2, RAS3)
-    ras1_min::Int       # min electrons in RAS1
-    ras3_max::Int       # max electrons in RAS3
-    xalpha::Array{Int}
-    xbeta::Array{Int}
+    ras_dim::Int
+    ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
+    max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
+    max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
 """
 struct RASCIAnsatz <: Ansatz
     no::Int  # number of orbitals
@@ -50,8 +44,8 @@ Constructor
 - `na`: Number of α electrons
 - `nb`: Number of β electrons
 - `ras_spaces`: Number of orbitals in each (RAS1, RAS2, RAS3)
-- `ras1_min`: Minimum number of electrons in RAS1
-- `ras3_max`: Max number of electrons in RAS3
+- `max_h`: Max number of holes in RAS1
+- `max_p`: Max number of particles in RAS3
 """
 function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3])
     na <= no || throw(DimensionMismatch)
