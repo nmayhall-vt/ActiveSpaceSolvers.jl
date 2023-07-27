@@ -2,21 +2,21 @@ using ActiveSpaceSolvers
 using Test
 using JLD2
 
-@load "ras_h6/tdm_c_a.jld2"
-@load "ras_h6/tdm_c_b.jld2"
+@load "RASCI/ras_h6/tdm_c_a.jld2"
+@load "RASCI/ras_h6/tdm_c_b.jld2"
 
-@load "ras_h6/tdm_ca_aa.jld2"
-@load "ras_h6/tdm_ca_bb.jld2"
-@load "ras_h6/tdm_ca_ab.jld2"
+@load "RASCI/ras_h6/tdm_ca_aa.jld2"
+@load "RASCI/ras_h6/tdm_ca_bb.jld2"
+@load "RASCI/ras_h6/tdm_ca_ab.jld2"
 
-@load "ras_h6/tdm_cc_bb.jld2"
-@load "ras_h6/tdm_cc_aa.jld2"
-@load "ras_h6/tdm_cc_ab.jld2"
+@load "RASCI/ras_h6/tdm_cc_bb.jld2"
+@load "RASCI/ras_h6/tdm_cc_aa.jld2"
+@load "RASCI/ras_h6/tdm_cc_ab.jld2"
 
-@load "ras_h6/tdm_cca_abb.jld2"
-@load "ras_h6/tdm_cca_aba.jld2"
-@load "ras_h6/tdm_cca_bbb.jld2"
-@load "ras_h6/tdm_cca_aaa.jld2"
+@load "RASCI/ras_h6/tdm_cca_abb.jld2"
+@load "RASCI/ras_h6/tdm_cca_aba.jld2"
+@load "RASCI/ras_h6/tdm_cca_bbb.jld2"
+@load "RASCI/ras_h6/tdm_cca_aaa.jld2"
 
 @testset "RASCI TDMs" begin
     @testset "c_a" begin

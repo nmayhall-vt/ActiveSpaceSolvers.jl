@@ -8,7 +8,7 @@ using Arpack
 using NPZ
 using JLD2
 
-@load "ras_h6/_ras_solution.jld2"
+@load "RASCI/ras_h6/_ras_solution.jld2"
 
 #v = abs.(v)
 
@@ -20,6 +20,9 @@ end
 
 @testset "RASCI expval of S^2" begin
     s2_new = ActiveSpaceSolvers.RASCI.compute_S2_expval(ras_sol.vectors, ras)
+    for i in 1:4
+        @printf(" %4i S^2 = %12.8f\n", i, s2_new[i])
+    end
     @test isapprox(s2_new, s2, atol=10e-14)
 end
 

@@ -242,6 +242,8 @@ function S2_helper(P::RASCIAnsatz)
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(P)#={{{=#
     all_cats_a = Vector{HP_Category_CA}()
     all_cats_b = Vector{HP_Category_CA}()
+    all_cats_bra_a = Vector{ActiveSpaceSolvers.RASCI.HP_Category_Bra}()
+    all_cats_bra_b = Vector{ActiveSpaceSolvers.RASCI.HP_Category_Bra}()
     
     cats_a = deepcopy(categories)
     cats_b = deepcopy(categories)
@@ -268,13 +270,15 @@ function S2_helper(P::RASCIAnsatz)
         idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
         sort!(idxas)
         lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
-        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected_a[j], idxas, shift, lu))
+        cat_lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
+        push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected_a[j], idxas, shift, lu, cat_lu))
+        push!(all_cats_bra_a, HP_Category_Bra(j, connected_a[j], idxas, shift))
         shift += length(idxas)
     end
 
     for k in 1:len_cat_a
         graph_a = make_cat_graphs(fock_list_a[k], P)
-        lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_a, 1, graph_a.max, all_cats_a[k].lookup, all_cats_a, rev_as)
+        lu = ActiveSpaceSolvers.RASCI.dfs_ca(graph_a, 1, graph_a.max, all_cats_a[k].lookup, all_cats_a, all_cats_bra_a, rev_as, rev_as)
         all_cats_a[k].lookup .= lu
     end
 
@@ -283,7 +287,7 @@ function S2_helper(P::RASCIAnsatz)
     #compute configs
     bs = compute_config_dict(fock_list_b, P, "beta")
     rev_bs = Dict(value => key for (key, value) in bs)
-
+    
     shiftb = 0
     for j in 1:len_cat_b
         idxbs = Vector{Int}()
@@ -291,13 +295,15 @@ function S2_helper(P::RASCIAnsatz)
         idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
         sort!(idxbs)
         lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
-        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs, shiftb, lu))
+        cat_lu = zeros(Int, graph_b.no, graph_b.no, length(idxbs))
+        push!(all_cats_b, HP_Category_CA(j, cats_b[j], connected_b[j], idxbs, shiftb, lu, cat_lu))
+        push!(all_cats_bra_b, HP_Category_Bra(j, connected_b[j], idxbs, shiftb))
         shiftb += length(idxbs)
     end
-
+    
     for k in 1:len_cat_b
         graph_b = make_cat_graphs(fock_list_b[k], P)
-        lu = ActiveSpaceSolvers.RASCI.dfs_single_excitation(graph_b, 1, graph_b.max, all_cats_b[k].lookup, all_cats_b, rev_bs)
+        lu = ActiveSpaceSolvers.RASCI.dfs_ca(graph_b, 1, graph_b.max, all_cats_b[k].lookup, all_cats_b, all_cats_bra_b, rev_bs, rev_bs)
         all_cats_b[k].lookup .= lu
     end
 #=}}}=#

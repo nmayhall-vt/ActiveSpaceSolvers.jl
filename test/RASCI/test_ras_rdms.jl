@@ -5,8 +5,8 @@ using JLD2
 using QCBase
 #using RDM
 
-@load "ras_h6/_integrals.jld2"
-@load "ras_h6/_ras_solution_info.jld2"
+#@load "RASCI/ras_h6/_integrals.jld2"
+@load "RASCI/ras_h6/_ras_solution.jld2"
 
 function test_rdms(problem, ints::InCoreInts, solver)
     solution = ActiveSpaceSolvers.solve(ints, problem, solver)
@@ -26,7 +26,7 @@ end
 
 @testset "RASCI Contract RDMS with ints to get E" begin
     solver = SolverSettings(nroots=1, tol=1e-6, maxiter=12)
-    e, e_testing = test_rdms(prob, ints, solver)
+    e, e_testing = test_rdms(ras, ints, solver)
     @test isapprox(e_testing, e, atol=10e-13)
 end
 
