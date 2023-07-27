@@ -400,14 +400,14 @@ function _ss_sum!(sig::Array{T,3}, v::Array{T,3}, F::Vector{T},Ia::Int) where {T
     nJa     = size(v)[3]
     count = 0
     for Ja in 1:nJa
-        #if abs(F[Ja]) > 1e-14 
+        if abs(F[Ja]) > 1e-14 
             @inbounds @simd for si in 1:n_roots
                 for Kb in 1:nKb
                     #count += 1
                     sig[Kb,si,Ia] += F[Ja]*v[Kb,si,Ja]
                 end
             end
-        #end
+        end
     end
 end
 
