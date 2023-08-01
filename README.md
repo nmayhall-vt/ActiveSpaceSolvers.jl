@@ -3,9 +3,8 @@
 <!-- [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://nmayhall-vt.github.io/ActiveSpaceSolvers.jl/stable/) -->
 <!-- [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://nmayhall-vt.github.io/ActiveSpaceSolvers.jl/dev/) -->
 [![Build Status](https://github.com/nmayhall-vt/ActiveSpaceSolvers.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/nmayhall-vt/ActiveSpaceSolvers.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Build Status]($GITHUB_SERVER_URL/${{ github.ref }}/GITHUB_REPOSITORY/actions/workflows/CI.yml/badge.svg?branch=main)]($GITHUB_SERVER_URL/${{ github.ref }}/$GITHUB_REPOSITORY/actions/workflows/CI.yml?query=branch%3Amain)
+[![Build Status](https://github.com/{{ github.repository }}/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/{{ github.repository }}/actions/workflows/CI.yml?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/nmayhall-vt/ActiveSpaceSolvers.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/nmayhall-vt/ActiveSpaceSolvers.jl)
-[![Coverage](https://codecov.io/gh/${{ github.ref }}/ActiveSpaceSolvers.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/${{ github.ref }}/ActiveSpaceSolvers.jl)
 
 ## Description of workflow
 
