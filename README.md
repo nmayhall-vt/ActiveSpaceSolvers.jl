@@ -53,7 +53,7 @@ ansatz = FCIAnsatz(norb, n_elec_a, n_elec_b)
 solver = SolverSettings(nroots=3, tol=1e-6, maxiter=100)
 
 # we can now solve our Ansatz and get energies and vectors from solution
-solution = eigs(ints, ansatz, solver)
+solution = solve(ints, ansatz, solver)
  
 display(solution)
 
@@ -77,7 +77,7 @@ ansatz = RASCIAnsatz(norb, n_elec_a, n_elec_b, (norbs_ras1, norbs_ras2, norbs_ra
 solver = SolverSettings(nroots=3, tol=1e-6, maxiter=100)
 
 # we can now solve our Ansatz and get energies and vectors from solution
-solution = eigs(ints, ansatz, solver)
+solution = solve(ints, ansatz, solver)
  
 display(solution)
 
