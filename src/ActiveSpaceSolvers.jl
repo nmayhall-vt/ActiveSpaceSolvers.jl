@@ -11,6 +11,7 @@ using InteractiveUtils
 abstract type Ansatz end        
 include("type_Solutions.jl");
 include("type_SolverSettings.jl");
+include("Helpers.jl");
 
 
 # Interface Methods: extend each for a new `Ansatz`
@@ -80,6 +81,10 @@ export compute_s2
 include("FCI/FCI.jl");
 import .FCI: FCIAnsatz
 export FCIAnsatz
+
+include("RASCI/RASCI.jl");
+import .RASCI: RASCIAnsatz
+export RASCIAnsatz
 
 
 # some methods
