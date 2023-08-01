@@ -39,9 +39,6 @@ jobs:
         with:
           files: lcov.info
 
-      - uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 #  docs:
 #    name: Documentation
 #    runs-on: ubuntu-latest
