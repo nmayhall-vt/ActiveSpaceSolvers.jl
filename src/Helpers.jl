@@ -53,7 +53,7 @@ function generate_cluster_fock_ansatze( ref_fock,
 end
 
 """
-    invariant_orbital_rotations(init_cluster_ansatz::Vector{})
+    invariant_orbital_rotations(init_cluster_ansatz::Ansatz)
 
 Generates a list of all pairs of orbitals that have invariant orbital rotations for the given cluster
 """
@@ -90,4 +90,50 @@ function invariant_orbital_rotations(cluster::Ansatz)
     end
     return invar_pairs
 end
+
+"""
+    invariant_orbital_rotations(init_cluster_ansatz::Vector{Ansatz})
+
+Generates a list of all pairs of orbitals that have invariant orbital rotations for the list of clusters
+"""
+function invariant_orbital_rotations(init_cluster_ansatz::Vector{Ansatz})
+    invar_pairs = []
+    for i in init_cluster_ansatz
+        if typeof(i) == FCIAnsatz
+            #return all pairs of orbs since all are invariant
+            pairs = []
+            for a in 1:i.no
+                for b in a+1:i.no
+                    push!(pairs, (a,b))
+                end
+            end
+            push!(invar_pairs, pairs)
+
+        else
+            #return pairs of orbs within each ras subspace
+            ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI.make_rasorbs(i.ras_spaces[1], i.ras_spaces[2], i.ras_spaces[3], i.no)
+            pairs = []
+            for a in 1:length(ras1)
+                for b in a+1:length(ras1)
+                    push!(pairs, (ras1[a],ras1[b]))
+                end
+            end
+
+            for c in 1:length(ras2)
+                for d in c+1:length(ras2)
+                    push!(pairs, (ras2[c],ras2[d]))
+                end
+            end
+
+            for e in 1:length(ras3)
+                for f in e+1:length(ras3)
+                    push!(pairs, (ras3[e],ras3[f]))
+                end
+            end
+            push!(invar_pairs, pairs)
+        end
+    end
+    return invar_pairs
+end
+
 
