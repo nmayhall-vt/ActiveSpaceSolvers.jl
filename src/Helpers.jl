@@ -96,7 +96,7 @@ end
 
 Generates a list of all pairs of orbitals that have invariant orbital rotations for the list of clusters
 """
-function invariant_orbital_rotations(init_cluster_ansatz::Vector{Ansatz})
+function invariant_orbital_rotations(init_cluster_ansatz::Vector{<:Ansatz})
     invar_pairs = []
     for i in init_cluster_ansatz
         if typeof(i) == FCIAnsatz
