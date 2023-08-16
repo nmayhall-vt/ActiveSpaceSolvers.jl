@@ -1,19 +1,20 @@
 using QCBase
+using ActiveSpaceSolvers
 
 
 """
         generate_cluster_fock_ansatze( ref_fock, 
                                         clusters::Vector{MOCluster}, 
-                                        init_cluster_ansatz::Vector{}, 
-                                        delta_elec=zeros(length(clusters)), 
+                                        init_cluster_ansatz::Vector{<:Ansatz}, 
+                                        delta_elec::Vector{Int}, 
                                         verbose=0) 
 
 Generates all possible fock sectors that are reachable for the given delta_elec for each cluster
 """
 function generate_cluster_fock_ansatze( ref_fock, 
                                         clusters::Vector{MOCluster}, 
-                                        init_cluster_ansatz::Vector{}, 
-                                        delta_elec=zeros(length(clusters)), 
+                                        init_cluster_ansatz::Vector{<:Ansatz}, 
+                                        delta_elec::Vector{Int}, 
                                         verbose=0) 
     ansatze = Vector{Vector{Ansatz}}()
     length(delta_elec) == length(clusters) || error("length(delta_elec) != length(clusters)") 

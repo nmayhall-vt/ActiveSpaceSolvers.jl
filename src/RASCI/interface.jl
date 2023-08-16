@@ -17,7 +17,6 @@ Type containing all the metadata needed to define a RASCI problem
     nb::Int  # number of beta
     dima::Int 
     dimb::Int 
-    dim::Int
     ras_dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
@@ -29,7 +28,7 @@ struct RASCIAnsatz <: Ansatz
     nb::Int  # number of beta
     dima::Int 
     dimb::Int 
-    dim::Int
+    #dim::Int
     ras_dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
@@ -56,11 +55,12 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces
     nb = convert(Int, nb)
     tmp = RASCIAnsatz(no, na, nb, ras_spaces, max_h, max_p)
     dima, dimb, ras_dim = calc_ras_dim(tmp)
-    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, max_h, max_p)
+    return RASCIAnsatz(no, na, nb, dima, dimb, ras_dim, ras_spaces, max_h, max_p);
+    #return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, max_h, max_p);
 end
 
 function RASCIAnsatz(no::Int, na::Int, nb::Int, ras_spaces::SVector{3,Int}, max_h, max_p)
-    return RASCIAnsatz(no, na, nb, 0, 0, 0, 0, ras_spaces, max_h, max_p)
+    return RASCIAnsatz(no, na, nb, 0, 0, 0, 0, ras_spaces, max_h, max_p);
 end
 
 function Base.display(p::RASCIAnsatz)
@@ -68,7 +68,7 @@ function Base.display(p::RASCIAnsatz)
 end
 
 function Base.print(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i", p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.ras_dim, p.max_h, p.max_p)
 end
 
 """
