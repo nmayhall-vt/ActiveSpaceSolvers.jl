@@ -73,6 +73,7 @@ function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) wh
 
     if lowercase(S.package) == "arpack"
 
+        
         Hmap = LinearMap(ints, ansatz)
 
         if v0 == nothing
@@ -89,7 +90,8 @@ function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) wh
         return Solution{A,T}(ansatz, e, v)
 
     elseif lowercase(S.package) == "davidson"
-        Hmap = LinearMap(ints, ansatz)
+        #Hmap = LinearMap(ints, ansatz)
+        Hmap = LinOpMat(ints, ansatz)
         dav = Davidson(Hmap; 
                        max_iter=S.maxiter, 
                        max_ss_vecs=S.max_ss_vecs, 
