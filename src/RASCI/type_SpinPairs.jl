@@ -83,4 +83,44 @@ function find_spin_pair(spin_pairs::Vector{Spin_Pair}, current::Int, spin="beta"
     end
 end
 
+function possible_pairs(spin_pairs::Vector{Spin_Pair}, alpha::Int)
+    pairs = zeros(Int, length(spin_pairs))
+    for i in 1:length(spin_pairs)
+        if spin_pairs[i].pair[1] == alpha
+            pairs[i] = spin_pairs[i].pair[2]
+        else
+            continue
+        end
+    end
+    return pairs
+end
+
+function possible_spin_pairs(spin_pairs::Vector{Spin_Pair}, alpha::Int)
+    pairs = Vector{Tuple{Int, Int}}()
+    for i in 1:length(spin_pairs)
+        if spin_pairs[i].pair[1] == alpha
+            push!(pairs, spin_pairs[i].pair)
+        else
+            continue
+        end
+    end
+    return pairs
+end
+
+function pair(pairs::Vector{Int}, val::Int)
+    for (pos, b) in enumerate(pairs)
+        if b == val
+            return pos
+        else
+            continue
+        end
+    end
+    return 0
+end
+
+    
+
+
+
+
 
