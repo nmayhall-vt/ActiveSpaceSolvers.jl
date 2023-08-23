@@ -585,7 +585,7 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
                         end   
                     end
 
-                    #for i in 1:prob.no
+                    #for i in 1:prob.no{{{
                     #    @views tmp_lu = cat_Ib.lookup[:,i, Ib_local]
                     #    @views tmp_cat = cat_Ib.cat_lookup[:,i,Ib_local]
                     #    for j in 1:prob.no
@@ -611,7 +611,7 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
                     #        #    #sigma_three[m][Ia_local, Ib_local, si] += hkl[i,j]*v[n][Ja_local, Jb_local, si]*sign_ij*sign_kl
                     #        end
                     #    end
-                    #end
+                    #end}}}
                 end
             end
         end
@@ -665,7 +665,7 @@ function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, 
             end
         end
 
-        # Alpha first then beta (slower version)
+        # Alpha first then beta (slower version){{{
         #for catb in cats_b    
         #    for cats in catb.connected
         #        m = find_spin_pair(spin_pairs, (cats_a[cats].idx, current_cat.idx))
@@ -689,29 +689,8 @@ function _sum_spin_pairs!(sig::Dict{Int, Array{T, 3}}, v::Dict{Int,Array{T,3}}, 
         #            end
         #        end
         #    end
-        #end
+        #end}}}
     else
-        #current_cat = find_cat(I, cats_a)
-        #for cata in cats_a
-        #    for cats in cata.connected
-        #        for Ib in cats_b[cats].idxs
-        #            n = find_spin_pair(spin_pairs, (cata.idx, cats_b[cats].idx))
-        #            Ib_v_local = Ib-cats_b[cats].shift
-        #            for Ja in cata.idxs
-        #                Ja_local = Ja-cata.shift
-        #                if cats_b[cats].idx in current_cat.connected
-        #                    m = find_spin_pair(spin_pairs, (current_cat.idx, cats_b[cats].idx))
-        #                    Ia_local = I-current_cat.shift
-        #                    Ib_local = Ib-cats_b[cats].shift
-        #                    @inbounds @simd for si in 1:n_roots
-        #                        sig[m][Ia_local,Ib_local,si] += F[Ja]*v[n][Ja_local, Ib_v_local,si]
-        #                    end
-        #                end
-        #            end
-        #        end
-        #    end
-        #end
-        
         current_cat = find_cat(I, cats_a)
         Ia_local = I-current_cat.shift
         for cata in cats_a
@@ -1920,7 +1899,7 @@ end
 
 
 function contract_same_ras!(nroots::Int, ras_orbs::Vector{Int}, current_cat::HP_Category_CA, Ib::Int, Ja_local::Int, spin_pair::Int, hkl::Array{Float64, 2}, sign_kl::Int, v::Dict{Int, Array{Float64, 3}}, sig::SubArray{Float64, 1, Array{Float64, 3}, Tuple{Int64, Int64, Base.Slice{Base.OneTo{Int64}}}, true})
-    for i in ras_orbs
+    for i in ras_orbs#={{{=#
         for j in ras_orbs
             Jb = current_cat.lookup[j, i, Ib]
             Jb != 0 || continue
@@ -1936,10 +1915,10 @@ function contract_same_ras!(nroots::Int, ras_orbs::Vector{Int}, current_cat::HP_
             end
         end
     end
-end
+end#=}}}=#
 
 function contract!(nroots::Int, ras_orbs1::Vector{Int}, ras_orbs2::Vector{Int}, current_cat::HP_Category_CA, next_cat::HP_Category_CA, Ib::Int, Ja_local::Int, spin_pair::Int, hkl::Array{Float64, 2}, sign_kl::Int, v::Dict{Int, Array{Float64, 3}}, sig::SubArray{Float64, 1, Array{Float64, 3}, Tuple{Int64, Int64, Base.Slice{Base.OneTo{Int64}}}, true})
-    for i in ras_orbs2
+    for i in ras_orbs2#={{{=#
         for j in ras_orbs1
             Jb = current_cat.lookup[j, i, Ib]
             Jb != 0 || continue
@@ -1955,7 +1934,7 @@ function contract!(nroots::Int, ras_orbs1::Vector{Int}, ras_orbs2::Vector{Int}, 
             end
         end
     end
-end
+end#=}}}=#
         
                 
 
