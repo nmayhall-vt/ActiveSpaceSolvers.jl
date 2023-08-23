@@ -499,7 +499,6 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
     #need to make function to make ras orbs
     ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
     
-    error("speed up")
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
