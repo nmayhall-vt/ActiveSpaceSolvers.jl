@@ -495,7 +495,11 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
         v[m] = reshape(tmp, (length(cats_a[spin_pairs[m].pair[1]].idxs), length(cats_b[spin_pairs[m].pair[2]].idxs), nroots))
         start += spin_pairs[m].dim
     end
+
+    #need to make function to make ras orbs
+    ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
     
+    error("speed up")
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         cat_Ib = cats_b[spin_pairs[m].pair[2]]
@@ -507,45 +511,113 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
                 sign_kl = sign(Ja)
                 Ja = abs(Ja)
                 hkl .= ints.h2[:,:,k,l]
-                #cata_kl = find_cat(Ja, cats_a)
                 cata_kl = cats_a[cat_Ia.cat_lookup[l,k,Ia_local]]
                 Ja_local = Ja-cata_kl.shift
                 Ibs = cats_b[spin_pairs[m].pair[2]].idxs
-                pairs = possible_pairs(spin_pairs, cata_kl.idx)
                 for Ib in Ibs
                 #for Ib in cats_b[spin_pairs[m].pair[2]].idxs
                     Ib_local = Ib-cat_Ib.shift
                     @views sig = sigma_three[m][Ia_local, Ib_local, :]
-                    for i in 1:prob.no
-                        @views tmp_lu = cat_Ib.lookup[:,i, Ib_local]
-                        @views tmp_cat = cat_Ib.cat_lookup[:,i,Ib_local]
-                        for j in 1:prob.no
-                            Jb = tmp_lu[j]
-                            #Jb = cat_Ib.lookup[j,i,Ib_local]
-                            Jb != 0 || continue
-                            sign_ij = sign(Jb)
-                            Jb = abs(Jb)
-                            #catb_ij = find_cat(Jb, cats_b)
-                            catb_ij = cats_b[tmp_cat[j]]
-                            #catb_ij = cats_b[cat_Ib.cat_lookup[j,i,Ib_local]]
-                            #n = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
-                            n = pair(pairs, catb_ij.idx) 
-                            n != 0 || continue
-                            Jb_local = Jb-catb_ij.shift
-                            @views v2 = v[n][Ja_local, Jb_local, :]
-                            sgn = sign_ij*sign_kl
-                            h = hkl[i,j]
-                            for si in 1:nroots
-                                @inbounds sig[si] += h*v2[si]*sgn
-                                #@inbounds sig[si] += hkl[i,j]*v2[si]*sign_ij*sign_kl
-                                #sigma_three[m][Ia_local, Ib_local, si] += hkl[i,j]*v[n][Ja_local, Jb_local, si]*sign_ij*sign_kl
-                            end
+                    # RAS1 -> RAS1, RAS2 -> RAS2, and RAS3 -> RAS3
+                    sp = find_spin_pair(spin_pairs, (cata_kl.idx, cat_Ib.idx))
+                    if sp != 0
+                        contract!(nroots, ras1, ras1, cat_Ib, cat_Ib, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                        contract!(nroots, ras2, ras2, cat_Ib, cat_Ib, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                        contract!(nroots, ras3, ras3, cat_Ib, cat_Ib, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                    end
+
+                    # RAS1 -> RAS2
+                    tmp_ij = (cat_Ib.hp[1] + 1, cat_Ib.hp[2])
+                    catb_ij = find_cat(tmp_ij, cats_b)
+                    if catb_ij != 0
+                        sp = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                        if sp != 0
+                            contract!(nroots, ras1, ras2, cat_Ib, catb_ij, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
                         end
                     end
+
+                    # RAS1 -> RAS3
+                    tmp_ij = (cat_Ib.hp[1] + 1, cat_Ib.hp[2]+1)
+                    catb_ij = find_cat(tmp_ij, cats_b)
+                    if catb_ij != 0
+                        sp = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                        if sp != 0
+                            contract!(nroots, ras1, ras3, cat_Ib, catb_ij, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                        end
+                    end
+
+                    # RAS2 -> RAS3
+                    tmp_ij = (cat_Ib.hp[1], cat_Ib.hp[2]+1)
+                    catb_ij = find_cat(tmp_ij, cats_b)
+                    if catb_ij != 0
+                        sp = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                        if sp != 0
+                            contract!(nroots, ras2, ras3, cat_Ib, catb_ij, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                        end   
+                    end
+                   
+                    # RAS2 -> RAS1
+                    tmp_ij = (cat_Ib.hp[1] - 1, cat_Ib.hp[2])
+                    catb_ij = find_cat(tmp_ij, cats_b)
+                    if catb_ij != 0
+                        sp = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                        if sp != 0
+                            contract!(nroots, ras2, ras1, cat_Ib, catb_ij, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                        end
+                    end
+
+                    # RAS3 -> RAS1
+                    tmp_ij = (cat_Ib.hp[1] - 1, cat_Ib.hp[2]-1)
+                    catb_ij = find_cat(tmp_ij, cats_b)
+                    if catb_ij != 0
+                        sp = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                        if sp != 0
+                            contract!(nroots, ras3, ras1, cat_Ib, catb_ij, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                        end
+                    end
+
+                    # RAS3 -> RAS2
+                    tmp_ij = (cat_Ib.hp[1], cat_Ib.hp[2]-1)
+                    catb_ij = find_cat(tmp_ij, cats_b)
+                    if catb_ij != 0
+                        sp = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                        if sp != 0
+                            contract!(nroots, ras3, ras2, cat_Ib, catb_ij, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
+                        end   
+                    end
+
+                    #for i in 1:prob.no
+                    #    @views tmp_lu = cat_Ib.lookup[:,i, Ib_local]
+                    #    @views tmp_cat = cat_Ib.cat_lookup[:,i,Ib_local]
+                    #    for j in 1:prob.no
+                    #        Jb = tmp_lu[j]
+                    #        #Jb = cat_Ib.lookup[j,i,Ib_local]
+                    #        Jb != 0 || continue
+                    #        sign_ij = sign(Jb)
+                    #        Jb = abs(Jb)
+                    #        #catb_ij = find_cat(Jb, cats_b)
+                    #        catb_ij = cats_b[tmp_cat[j]]
+                    #        #catb_ij = cats_b[cat_Ib.cat_lookup[j,i,Ib_local]]
+                    #        n = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
+                    #        #n = pair(pairs, catb_ij.idx) 
+                    #        n != 0 || continue
+                    #        Jb_local = Jb-catb_ij.shift
+                    #        @views v2 = v[n][Ja_local, Jb_local, :]
+                    #        sgn = sign_ij*sign_kl
+                    #        h = hkl[i,j]
+                    #        #sig = h*v2*sgn
+                    #        for si in 1:nroots
+                    #            @inbounds sig[si] += h*v2[si]*sgn
+                    #        #    #@inbounds sig[si] += hkl[i,j]*v2[si]*sign_ij*sign_kl
+                    #        #    #sigma_three[m][Ia_local, Ib_local, si] += hkl[i,j]*v[n][Ja_local, Jb_local, si]*sign_ij*sign_kl
+                    #        end
+                    #    end
+                    #end
                 end
             end
         end
     end
+    
 
     start = 1
     sig = zeros(Float64, prob.ras_dim, nroots)
@@ -1846,5 +1918,48 @@ function make_rasorbs(rasi_orbs, rasii_orbs, rasiii_orbs, norbs, frozen_core=fal
         return i_orbs, ii_orbs, iii_orbs
     end#=}}}=#
 end
+
+
+function contract_same_ras!(nroots::Int, ras_orbs::Vector{Int}, current_cat::HP_Category_CA, Ib::Int, Ja_local::Int, spin_pair::Int, hkl::Array{Float64, 2}, sign_kl::Int, v::Dict{Int, Array{Float64, 3}}, sig::SubArray{Float64, 1, Array{Float64, 3}, Tuple{Int64, Int64, Base.Slice{Base.OneTo{Int64}}}, true})
+    for i in ras_orbs
+        for j in ras_orbs
+            Jb = current_cat.lookup[j, i, Ib]
+            Jb != 0 || continue
+            sign_ij = sign(Jb)
+            Jb = abs(Jb)
+            Jb_local = Jb-current_cat.shift
+            @views v2 = v[spin_pair][Ja_local,Jb_local, :]
+            sgn = sign_ij*sign_kl
+            h = hkl[i,j]
+            for si in 1:nroots
+                #@inbounds sig[si] += h*v[spin_pair][Ja_local,Jb_local, si]*sgn
+                @inbounds sig[si] += h*v2[si]*sgn
+            end
+        end
+    end
+end
+
+function contract!(nroots::Int, ras_orbs1::Vector{Int}, ras_orbs2::Vector{Int}, current_cat::HP_Category_CA, next_cat::HP_Category_CA, Ib::Int, Ja_local::Int, spin_pair::Int, hkl::Array{Float64, 2}, sign_kl::Int, v::Dict{Int, Array{Float64, 3}}, sig::SubArray{Float64, 1, Array{Float64, 3}, Tuple{Int64, Int64, Base.Slice{Base.OneTo{Int64}}}, true})
+    for i in ras_orbs2
+        for j in ras_orbs1
+            Jb = current_cat.lookup[j, i, Ib]
+            Jb != 0 || continue
+            sign_ij = sign(Jb)
+            Jb = abs(Jb)
+            Jb_local = Jb-next_cat.shift
+            @views v2 = v[spin_pair][Ja_local,Jb_local, :]
+            sgn = sign_ij*sign_kl
+            h = hkl[i,j]
+            for si in 1:nroots
+                #@inbounds sig[si] += h*v[spin_pair][Ja_local,Jb_local, si]*sgn
+                @inbounds sig[si] += h*v2[si]*sgn
+            end
+        end
+    end
+end
+        
+                
+
+        
 
 

@@ -95,6 +95,18 @@ function possible_pairs(spin_pairs::Vector{Spin_Pair}, alpha::Int)
     return pairs
 end
 
+function possible_spin_pairs(spin_pairs::Vector{Spin_Pair}, alpha::Int)
+    pairs = Vector{Tuple{Int, Int}}()
+    for i in 1:length(spin_pairs)
+        if spin_pairs[i].pair[1] == alpha
+            push!(pairs, spin_pairs[i].pair)
+        else
+            continue
+        end
+    end
+    return pairs
+end
+
 function pair(pairs::Vector{Int}, val::Int)
     for (pos, b) in enumerate(pairs)
         if b == val

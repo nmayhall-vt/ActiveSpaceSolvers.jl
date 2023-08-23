@@ -386,4 +386,22 @@ function find_cat(idx::Int, categories::Vector{<:HP_Category})
     return 0#=}}}=#
 end
 
+"""
+    find_cat(idx::Int, categories::Vector{<:HP_Category})
+
+Doesn't get used often but will find the HP_cateogry from a given index
+"""
+function find_cat(tmp::Tuple{Int, Int}, categories::Vector{<:HP_Category})
+    #this function will find the category that idx belongs to{{{
+    for cat in categories
+        if tmp == cat.hp
+            return cat
+        else
+            continue
+        end
+    end
+    return 0#=}}}=#
+end
+
+
 

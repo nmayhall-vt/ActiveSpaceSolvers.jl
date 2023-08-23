@@ -88,7 +88,7 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
     iters = 0
     function mymatvec(v)
         iters += 1
-        @printf(" Iter: %4i", iters)
+        #@printf(" Iter: %4i", iters)
         #print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
         #flush(stdout)
@@ -144,16 +144,16 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
         else 
             nr = size(v)[2]
         end
-        #sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
-        #sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
-        #sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
+        sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
+        sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
+        sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
         
-        println("sigma1")
-        @time sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
-        println("sigma2")
-        @time sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
-        println("sigma3")
-        @time sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
+        #println("sigma1")
+        #@time sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
+        #println("sigma2")
+        #@time sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
+        #println("sigma3")
+        #@time sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
         
         sig = sigma1 + sigma2 + sigma3
         
