@@ -1436,7 +1436,7 @@ function apply_c(config, orb, config_dict_ket, config_dict_bra, cats_ket::Vector
         sign_c = 1
         
         if haskey(config_dict_bra, new);
-            idx = config_dict[new]
+            idx = config_dict_bra[new]
         else
             return 1, 0, 0,0
         end
