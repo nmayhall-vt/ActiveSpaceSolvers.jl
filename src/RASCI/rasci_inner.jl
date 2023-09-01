@@ -321,10 +321,8 @@ function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
     n_spin_pairs = length(spin_pairs)
     nroots = size(C,2)
 
-    #C = permutedims(C, [2,1])
     F = zeros(Float64, prob.dimb)
     start = 1
-
 
     #sign to switch from (a,b) to (b,a) for optimizing _sum_spin_pairs! function
     sgnK = 1 
@@ -584,34 +582,6 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
                             contract!(nroots, ras3, ras2, cat_Ib, catb_ij, Ib_local, Ja_local, sp, hkl, sign_kl, v, sig)
                         end   
                     end
-
-                    #for i in 1:prob.no{{{
-                    #    @views tmp_lu = cat_Ib.lookup[:,i, Ib_local]
-                    #    @views tmp_cat = cat_Ib.cat_lookup[:,i,Ib_local]
-                    #    for j in 1:prob.no
-                    #        Jb = tmp_lu[j]
-                    #        #Jb = cat_Ib.lookup[j,i,Ib_local]
-                    #        Jb != 0 || continue
-                    #        sign_ij = sign(Jb)
-                    #        Jb = abs(Jb)
-                    #        #catb_ij = find_cat(Jb, cats_b)
-                    #        catb_ij = cats_b[tmp_cat[j]]
-                    #        #catb_ij = cats_b[cat_Ib.cat_lookup[j,i,Ib_local]]
-                    #        n = find_spin_pair(spin_pairs, (cata_kl.idx, catb_ij.idx))
-                    #        #n = pair(pairs, catb_ij.idx) 
-                    #        n != 0 || continue
-                    #        Jb_local = Jb-catb_ij.shift
-                    #        @views v2 = v[n][Ja_local, Jb_local, :]
-                    #        sgn = sign_ij*sign_kl
-                    #        h = hkl[i,j]
-                    #        #sig = h*v2*sgn
-                    #        for si in 1:nroots
-                    #            @inbounds sig[si] += h*v2[si]*sgn
-                    #        #    #@inbounds sig[si] += hkl[i,j]*v2[si]*sign_ij*sign_kl
-                    #        #    #sigma_three[m][Ia_local, Ib_local, si] += hkl[i,j]*v[n][Ja_local, Jb_local, si]*sign_ij*sign_kl
-                    #        end
-                    #    end
-                    #end}}}
                 end
             end
         end

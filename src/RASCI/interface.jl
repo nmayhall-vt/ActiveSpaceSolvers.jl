@@ -8,7 +8,6 @@ using StaticArrays
 using LinearAlgebra
 using Printf
 using TimerOutputs
-using JLD2
 
 """
 Type containing all the metadata needed to define a RASCI problem 
@@ -19,6 +18,7 @@ Type containing all the metadata needed to define a RASCI problem
     dima::Int 
     dimb::Int 
     ras_dim::Int
+    dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
     max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
@@ -147,13 +147,6 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
         sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
         sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
         sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
-        
-        #println("sigma1")
-        #@time sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
-        #println("sigma2")
-        #@time sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
-        #println("sigma3")
-        #@time sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
         
         sig = sigma1 + sigma2 + sigma3
         
