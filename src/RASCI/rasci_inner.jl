@@ -133,7 +133,7 @@ function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
     as, bs, rev_as, rev_bs, all_cats_a, all_cats_b = S2_helper(P)
     spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(P, all_cats_a, all_cats_b)
     
-    P.dim == size(C,1) || throw(DimensionMismatch)
+    P.ras_dim == size(C,1) || throw(DimensionMismatch)
     
     v = Dict{Int, Array{Float64, 3}}()
     S2v = Dict{Int, Array{Float64, 3}}()
