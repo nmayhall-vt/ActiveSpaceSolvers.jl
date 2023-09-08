@@ -17,8 +17,8 @@ Type containing all the metadata needed to define a RASCI problem
     nb::Int  # number of beta
     dima::Int 
     dimb::Int 
-    dim::Int
     ras_dim::Int
+    dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
     max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
@@ -56,11 +56,11 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces
     nb = convert(Int, nb)
     tmp = RASCIAnsatz(no, na, nb, ras_spaces, max_h, max_p)
     dima, dimb, ras_dim = calc_ras_dim(tmp)
-    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, max_h, max_p)
+    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, max_h, max_p);
 end
 
 function RASCIAnsatz(no::Int, na::Int, nb::Int, ras_spaces::SVector{3,Int}, max_h, max_p)
-    return RASCIAnsatz(no, na, nb, 0, 0, 0, 0, ras_spaces, max_h, max_p)
+    return RASCIAnsatz(no, na, nb, 0, 0, 0, 0, ras_spaces, max_h, max_p);
 end
 
 function Base.display(p::RASCIAnsatz)
@@ -68,7 +68,7 @@ function Base.display(p::RASCIAnsatz)
 end
 
 function Base.print(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) Dimension: %-3i", p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.ras_dim, p.max_h, p.max_p)
 end
 
 """
@@ -133,7 +133,7 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
     function mymatvec(v)
         iters += 1
         #@printf(" Iter: %4i", iters)
-        print("Iter: ", iters, " ")
+        #print("Iter: ", iters, " ")
         #flush(stdout)
         #display(size(v))
        
@@ -144,8 +144,6 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
         else 
             nr = size(v)[2]
         end
-        #v = reshape(v, prb.dima, prb.dimb, nr)
-        
         sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
         sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
         sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
