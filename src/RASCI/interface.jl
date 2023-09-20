@@ -30,7 +30,7 @@ struct RASCIAnsatz <: Ansatz
     dima::Int 
     dimb::Int 
     dim::Int
-    ras_dim::Int
+    #ras_dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
     max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
@@ -56,19 +56,20 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces
     nb = convert(Int, nb)
     tmp = RASCIAnsatz(no, na, nb, ras_spaces, max_h, max_p)
     dima, dimb, ras_dim = calc_ras_dim(tmp)
-    return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, max_h, max_p);
+    return RASCIAnsatz(no, na, nb, dima, dimb, ras_dim, ras_spaces, max_h, max_p);
+    #return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, max_h, max_p);
 end
 
 function RASCIAnsatz(no::Int, na::Int, nb::Int, ras_spaces::SVector{3,Int}, max_h, max_p)
-    return RASCIAnsatz(no, na, nb, 0, 0, 0, 0, ras_spaces, max_h, max_p);
+    return RASCIAnsatz(no, na, nb, 0, 0, 0, ras_spaces, max_h, max_p);
 end
 
 function Base.display(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.ras_dim, p.max_h, p.max_p)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p)
 end
 
 function Base.print(p::RASCIAnsatz)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.ras_dim, p.max_h, p.max_p)
+    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p)
 end
 
 """
@@ -97,7 +98,7 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
         nr = 0
         if length(size(v)) == 1
             nr = 1
-            v = reshape(v,prb.ras_dim, nr)
+            v = reshape(v,prb.dim, nr)
         else 
             nr = size(v)[2]
         end
@@ -109,12 +110,12 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
         
         sig = sigma1 + sigma2 + sigma3
         
-        #v = reshape(v,prb.ras_dim, nr)
-        #sig = reshape(sig, prb.ras_dim, nr)
+        #v = reshape(v,prb.dim, nr)
+        #sig = reshape(sig, prb.dim, nr)
         sig .+= ints.h0*v
         return sig
     end
-    return LinearMap(mymatvec, prb.ras_dim, prb.ras_dim, issymmetric=true, ismutating=false, ishermitian=true)
+    return LinearMap(mymatvec, prb.dim, prb.dim, issymmetric=true, ismutating=false, ishermitian=true)
 end
 
 """
@@ -140,7 +141,7 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
         nr = 0
         if length(size(v)) == 1
             nr = 1
-            v = reshape(v,prb.ras_dim, nr)
+            v = reshape(v,prb.dim, nr)
         else 
             nr = size(v)[2]
         end
@@ -153,7 +154,7 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
         sig .+= ints.h0*v
         return sig
     end
-    return LinOpMat{T}(mymatvec, prb.ras_dim, true)
+    return LinOpMat{T}(mymatvec, prb.dim, true)
 end
 
 function ras_calc_ndets(no, nelec, ras_spaces, ras1_min, ras3_max)
@@ -320,7 +321,7 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz)
     end
     
     starti = 1
-    w2 = zeros(Float64, bra_ansatz.ras_dim, nroots)
+    w2 = zeros(Float64, bra_ansatz.dim, nroots)
     for m in 1:length(spin_pairs_bra)
         tmp = reshape(w[m], (size(w[m],1)*size(w[m],2), nroots))
         w2[starti:starti+spin_pairs_bra[m].dim-1, :] .= tmp
@@ -409,7 +410,7 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz)
     end
     
     starti = 1
-    w2 = zeros(Float64, bra_ansatz.ras_dim, nroots)
+    w2 = zeros(Float64, bra_ansatz.dim, nroots)
     for m in 1:length(spin_pairs_bra)
         tmp = reshape(w[m], (size(w[m],1)*size(w[m],2), nroots))
         w2[starti:starti+spin_pairs_bra[m].dim-1, :] .= tmp
@@ -435,7 +436,7 @@ Build the Hamiltonian defined by `ints` in the Slater Determinant Basis  specifi
 """
 function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, p::RASCIAnsatz)
     spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(p)
-    nr = p.ras_dim
+    nr = p.dim
     v = Matrix(1.0I, nr, nr)
     sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(p, spin_pairs, a_categories, b_categories, ints, v)
     sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(p, spin_pairs, a_categories, b_categories, ints, v)

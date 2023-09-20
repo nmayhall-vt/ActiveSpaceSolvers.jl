@@ -133,7 +133,7 @@ function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
     as, bs, rev_as, rev_bs, all_cats_a, all_cats_b = S2_helper(P)
     spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(P, all_cats_a, all_cats_b)
     
-    P.ras_dim == size(C,1) || throw(DimensionMismatch)
+    P.dim == size(C,1) || throw(DimensionMismatch)
     
     v = Dict{Int, Array{Float64, 3}}()
     S2v = Dict{Int, Array{Float64, 3}}()
@@ -223,7 +223,7 @@ function apply_S2_matrix(P::RASCIAnsatz, C::AbstractArray{T}) where T
     end
     
     starti = 1
-    S2 = zeros(Float64, P.ras_dim, nr)
+    S2 = zeros(Float64, P.dim, nr)
     for m in 1:length(spin_pairs)
         tmp = reshape(S2v[m], (size(S2v[m],1)*size(S2v[m],2), nr))
         S2[starti:starti+spin_pairs[m].dim-1, :] .= tmp
@@ -388,7 +388,7 @@ function sigma_one(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
     end
     
     start = 1
-    sig = zeros(Float64, prob.ras_dim, nroots)
+    sig = zeros(Float64, prob.dim, nroots)
     for m in 1:n_spin_pairs
         #Alpha then beta
         tmp = reshape(sgnK.*permutedims(sigma_one[m], (2,1,3)), (size(sigma_one[m],1)*size(sigma_one[m],2), nroots))
@@ -464,7 +464,7 @@ function sigma_two(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::Vec
     end
 
     starti = 1
-    sig = zeros(Float64, prob.ras_dim, nroots)
+    sig = zeros(Float64, prob.dim, nroots)
     for m in 1:n_spin_pairs
         tmp = reshape(sigma_two[m], (size(sigma_two[m],1)*size(sigma_two[m],2), nroots))
         sig[starti:starti+spin_pairs[m].dim-1, :] .= tmp
@@ -589,7 +589,7 @@ function sigma_three(prob::RASCIAnsatz, spin_pairs::Vector{Spin_Pair}, cats_a::V
     
 
     start = 1
-    sig = zeros(Float64, prob.ras_dim, nroots)
+    sig = zeros(Float64, prob.dim, nroots)
     for m in 1:n_spin_pairs
         tmp = reshape(sigma_three[m], (size(sigma_three[m],1)*size(sigma_three[m],2), nroots))
         sig[start:start+spin_pairs[m].dim-1, :] .= tmp

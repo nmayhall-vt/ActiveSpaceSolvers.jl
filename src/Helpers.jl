@@ -22,16 +22,18 @@ function generate_cluster_fock_ansatze( ref_fock,
     for i in 1:length(clusters)
         verbose == 0 || display(clusters[i])
         delta_e_i = delta_elec[i] 
-        
+
         #
         # Get list of Fock-space sectors for current cluster
         #
         ni = ref_fock[i][1] + ref_fock[i][2]  # number of electrons in cluster i
-        sectors = []
         max_e = 2*length(clusters[i])
         min_e = 0
+        sectors = []
+        println("number of elecs: ", ni)
         for nj in ni-delta_e_i:ni+delta_e_i
-        
+            
+
             nj <= max_e || continue
             nj >= min_e || continue
 
@@ -42,7 +44,6 @@ function generate_cluster_fock_ansatze( ref_fock,
                 push!(sectors, ansatz_i)
             elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz
                 ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
-                display(ansatz_i)
                 push!(sectors, ansatz_i)
             else
                 error("No ansatz defined")
