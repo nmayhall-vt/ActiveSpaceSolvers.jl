@@ -17,7 +17,6 @@ Type containing all the metadata needed to define a RASCI problem
     nb::Int  # number of beta
     dima::Int 
     dimb::Int 
-    ras_dim::Int
     dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
@@ -30,7 +29,6 @@ struct RASCIAnsatz <: Ansatz
     dima::Int 
     dimb::Int 
     dim::Int
-    #ras_dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
     max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
@@ -57,7 +55,6 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces
     tmp = RASCIAnsatz(no, na, nb, ras_spaces, max_h, max_p)
     dima, dimb, ras_dim = calc_ras_dim(tmp)
     return RASCIAnsatz(no, na, nb, dima, dimb, ras_dim, ras_spaces, max_h, max_p);
-    #return RASCIAnsatz(no, na, nb, dima, dimb, dima*dimb, ras_dim, ras_spaces, max_h, max_p);
 end
 
 function RASCIAnsatz(no::Int, na::Int, nb::Int, ras_spaces::SVector{3,Int}, max_h, max_p)
@@ -82,8 +79,6 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `RASCIAnsatz` object
 """
 function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
-    #a_categories = ActiveSpaceSolvers.RASCI.make_categories(prb, spin="alpha")
-    #b_categories = ActiveSpaceSolvers.RASCI.make_categories(prb, spin="beta")
     spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(prb)
 
     iters = 0
