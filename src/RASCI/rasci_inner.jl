@@ -754,7 +754,7 @@ end
 
 Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
 """
-function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")#={{{=#
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="beta", type="ccaa")
     spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob, cats_a, cats_b)
@@ -836,6 +836,136 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
                         Jb = abs(Jb)
                         catb_sr = find_cat(Jb, cats_b_ca)
                         n = find_spin_pair(spin_pairs_ca, (cata_pq.idx, catb_sr.idx))
+                        n != 0 || continue
+                        Ja_local = Ja-cata_pq.shift
+                        Jb_local = Jb-catb_sr.shift
+                        rdm2ab[p,q,r,s] += sign_pq*sign_rs*v[n][Ja_local, Jb_local]*v[m][Ia_local, Ib_local]
+                    end
+                end
+            end
+        end
+    end
+    return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
+end
+
+"""
+    compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+
+Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
+"""
+function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+    spin_pairs, cats_a, cats_b = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)
+
+    rdm1a, rdm1b = compute_1rdm(prob, C)
+    rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)
+    rdm2bb = zeros(prob.no, prob.no, prob.no, prob.no)
+    rdm2ab = zeros(prob.no, prob.no, prob.no, prob.no)
+    
+    v = Dict{Int, Array{Float64, 2}}()
+    
+    start = 1
+    for m in 1:length(spin_pairs)
+        tmp = C[start:start+spin_pairs[m].dim-1]
+        v[m] = reshape(tmp, (length(cats_a[spin_pairs[m].pair[1]].idxs), length(cats_b[spin_pairs[m].pair[2]].idxs)))
+        start += spin_pairs[m].dim
+    end
+    
+    categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)
+    fock_list_a, del_at_a = make_fock_from_categories(categories, prob, "alpha")
+    #compute configs
+    as = compute_config_dict(fock_list_a, prob, "alpha")
+    rev_as = Dict(value => key for (key, value) in as)
+    
+    fock_list_b, del_at_b = make_fock_from_categories(categories, prob, "beta")
+    #compute configs
+    bs = compute_config_dict(fock_list_b, prob, "beta")
+    rev_bs = Dict(value => key for (key, value) in bs)
+    
+
+    for m in 1:length(spin_pairs)
+        cat_Ia = cats_a[spin_pairs[m].pair[1]]
+        for I in cats_a[spin_pairs[m].pair[1]].idxs
+            config = as[I]
+            Ia_local = I-cat_Ia.shift
+            for s in config
+                sgna, config_a = apply_a_dumb(config, s)
+                if isempty(config_a) == false
+                    for r in config_a
+                        sgnaa, config_aa = apply_a_dumb(config_a, r)
+                        for q in 1:prob.no
+                            sgnc, config_c = apply_c_dumb(config_aa, q)
+                            for p in 1:prob.no
+                                sgncc, config_cc = apply_c_dumb(config_c, p)
+                                if haskey(rev_as, config_cc)
+                                    cat_Ja = find_cat(rev_as[config_cc], cats_a)
+                                    n = find_spin_pair(spin_pairs, (cat_Ja.idx, spin_pairs[m].pair[2]))
+                                    if n != 0
+                                        Ja_local = rev_as[config_cc]-cat_Ja.shift
+                                        sgn = sgna*sgnaa*sgnc*sgncc
+                                        rdm2aa[p,s,q,r] += sgn*dot(v[n][Ja_local,:], v[m][Ia_local,:])
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    for m in 1:length(spin_pairs)
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        for I in cats_b[spin_pairs[m].pair[2]].idxs
+            config = bs[I]
+            Ib_local = I-cat_Ib.shift
+            for s in config
+                sgna, config_a = apply_a_dumb(config, s)
+                if isempty(config_a) == false
+                    for r in config_a
+                        sgnaa, config_aa = apply_a_dumb(config_a, r)
+                        for q in 1:prob.no
+                            sgnc, config_c = apply_c_dumb(config_aa, q)
+                            for p in 1:prob.no
+                                sgncc, config_cc = apply_c_dumb(config_c, p)
+                                if haskey(rev_bs, config_cc)
+                                    cat_Ja = find_cat(rev_bs[config_cc], cats_b)
+                                    n = find_spin_pair(spin_pairs, (spin_pairs[m].pair[1], cat_Ja.idx))
+                                    if n != 0
+                                        Ja_local = rev_bs[config_cc]-cat_Ja.shift
+                                        sgn = sgna*sgnaa*sgnc*sgncc
+                                        rdm2bb[p,s,q,r] += sgn*dot(v[n][:, Ja_local], v[m][:, Ib_local])
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    
+    #alpha beta  p'r'sq
+    for m in 1:length(spin_pairs)
+        cat_Ia = cats_a[spin_pairs[m].pair[1]]
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        for Ia in cats_a[spin_pairs[m].pair[1]].idxs
+            Ia_local = Ia-cat_Ia.shift
+            for q in 1:prob.no, p in 1:prob.no
+                Ja = cat_Ia.lookup[q,p,Ia_local]
+                Ja != 0 || continue
+                sign_pq = sign(Ja)
+                Ja = abs(Ja)
+                cata_pq = find_cat(Ja, cats_a)
+                for Ib in cats_b[spin_pairs[m].pair[2]].idxs
+                    Ib_local = Ib-cat_Ib.shift
+                    for s in 1:prob.no, r in 1:prob.no
+                        Jb = cat_Ib.lookup[s,r,Ib_local]
+                        Jb != 0 || continue
+                        sign_rs = sign(Jb)
+                        Jb = abs(Jb)
+                        catb_sr = find_cat(Jb, cats_b)
+                        n = find_spin_pair(spin_pairs, (cata_pq.idx, catb_sr.idx))
                         n != 0 || continue
                         Ja_local = Ja-cata_pq.shift
                         Jb_local = Jb-catb_sr.shift
@@ -1354,6 +1484,49 @@ function bubble_sort(arr)
         end
     end
     return count, arr#=}}}=#
+end
+
+"""
+"""
+function apply_a_dumb(config, orb)
+    spot = first(findall(x->x==orb, config))
+    new = Vector(config)
+    
+    splice!(new, spot)
+
+    sign = 1 
+    if spot % 2 != 1
+        sign = -1
+    end
+    return sign, new
+end
+
+function apply_c_dumb(config, orb)
+    new = Vector(config)
+    insert_here = 1
+    
+    if isempty(config)
+        new = [orb]
+        sign_c = 1
+        
+    else
+        for i in 1:length(config)
+            if config[i] > orb
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+
+        insert!(new, insert_here, orb)
+
+        sign_c = 1
+        if insert_here % 2 != 1
+            sign_c = -1
+        end
+    end
+    return sign_c, new
 end
 
 """
