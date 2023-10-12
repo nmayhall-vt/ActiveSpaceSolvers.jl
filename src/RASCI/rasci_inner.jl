@@ -754,7 +754,7 @@ end
 
 Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
 """
-function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
     println("in older rdm2")
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")#={{{=#
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="beta", type="ccaa")
@@ -854,7 +854,8 @@ end
 
 Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
 """
-function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
+function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+    println("in newer rdm2")
     spin_pairs, cats_a, cats_b = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)
 
     rdm1a, rdm1b = compute_1rdm(prob, C)
@@ -877,7 +878,7 @@ function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
     as = compute_config_dict(fock_list_a, prob, "alpha")
     rev_as = Dict(value => key for (key, value) in as)
 
-    println("starting rdm2aa")
+    #println("starting rdm2aa")
     for m in 1:length(spin_pairs)
         cat_Ia = cats_a[spin_pairs[m].pair[1]]
         for I in cats_a[spin_pairs[m].pair[1]].idxs
@@ -908,7 +909,7 @@ function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
             end
         end
     end
-    println("starting rdm2bb")
+    #println("starting rdm2bb")
 
     if prob.na == prob.nb
         rdm2bb == rdm2aa
@@ -949,7 +950,7 @@ function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
             end
         end
     end
-    println("starting rdm2ab")
+    #println("starting rdm2ab")
     
     #alpha beta  p'r'sq
     for m in 1:length(spin_pairs)
