@@ -754,7 +754,7 @@ end
 
 Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
 """
-function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
+function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
     println("in older rdm2")
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")#={{{=#
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="beta", type="ccaa")
@@ -854,7 +854,7 @@ end
 
 Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
 """
-function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
+function compute_1rdm_2rdm_new(prob::RASCIAnsatz, C::Vector)
     println("in newer rdm2")
     spin_pairs, cats_a, cats_b = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)
 
