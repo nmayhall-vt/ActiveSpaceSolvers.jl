@@ -754,8 +754,8 @@ end
 
 Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
 """
-function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
-    println("in older rdm2")
+function compute_1rdm_2rdm_old(prob::RASCIAnsatz, C::Vector)
+    println("in older rdm222")
     cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="alpha", type="ccaa")#={{{=#
     cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(prob, prob, spin="beta", type="ccaa")
     spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob, cats_a, cats_b)
@@ -815,6 +815,7 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
             end
         end
     end
+    
 
     #alpha beta  p'r'sq
     for m in 1:length(spin_pairs_ca)
@@ -854,7 +855,7 @@ end
 
 Computes both the 1-particle and 2-particle reduced density matrices, <ψ|p'q'sr|ψ>
 """
-function compute_1rdm_2rdm_new(prob::RASCIAnsatz, C::Vector)
+function compute_1rdm_2rdm(prob::RASCIAnsatz, C::Vector)
     println("in newer rdm2")
     spin_pairs, cats_a, cats_b = ActiveSpaceSolvers.RASCI.make_spin_pairs(prob)
 
@@ -909,38 +910,32 @@ function compute_1rdm_2rdm_new(prob::RASCIAnsatz, C::Vector)
             end
         end
     end
-    #println("starting rdm2bb")
+    fock_list_b, del_at_b = make_fock_from_categories(categories, prob, "beta")
+    #compute configs
+    bs = compute_config_dict(fock_list_b, prob, "beta")
+    rev_bs = Dict(value => key for (key, value) in bs)
 
-    if prob.na == prob.nb
-        rdm2bb == rdm2aa
-    else
-        fock_list_b, del_at_b = make_fock_from_categories(categories, prob, "beta")
-        #compute configs
-        bs = compute_config_dict(fock_list_b, prob, "beta")
-        rev_bs = Dict(value => key for (key, value) in bs)
-    
-        for m in 1:length(spin_pairs)
-            cat_Ib = cats_b[spin_pairs[m].pair[2]]
-            for I in cats_b[spin_pairs[m].pair[2]].idxs
-                config = bs[I]
-                Ib_local = I-cat_Ib.shift
-                for s in config
-                    sgna, config_a = apply_a_dumb(config, s)
-                    if isempty(config_a) == false
-                        for r in config_a
-                            sgnaa, config_aa = apply_a_dumb(config_a, r)
-                            for q in 1:prob.no
-                                sgnc, config_c = apply_c_dumb(config_aa, q)
-                                for p in 1:prob.no
-                                    sgncc, config_cc = apply_c_dumb(config_c, p)
-                                    if haskey(rev_bs, config_cc)
-                                        cat_Ja = find_cat(rev_bs[config_cc], cats_b)
-                                        n = find_spin_pair(spin_pairs, (spin_pairs[m].pair[1], cat_Ja.idx))
-                                        if n != 0
-                                            Ja_local = rev_bs[config_cc]-cat_Ja.shift
-                                            sgn = sgna*sgnaa*sgnc*sgncc
-                                            rdm2bb[p,s,q,r] += sgn*dot(v[n][:, Ja_local], v[m][:, Ib_local])
-                                        end
+    for m in 1:length(spin_pairs)
+        cat_Ib = cats_b[spin_pairs[m].pair[2]]
+        for I in cats_b[spin_pairs[m].pair[2]].idxs
+            config = bs[I]
+            Ib_local = I-cat_Ib.shift
+            for s in config
+                sgna, config_a = apply_a_dumb(config, s)
+                if isempty(config_a) == false
+                    for r in config_a
+                        sgnaa, config_aa = apply_a_dumb(config_a, r)
+                        for q in 1:prob.no
+                            sgnc, config_c = apply_c_dumb(config_aa, q)
+                            for p in 1:prob.no
+                                sgncc, config_cc = apply_c_dumb(config_c, p)
+                                if haskey(rev_bs, config_cc)
+                                    cat_Ja = find_cat(rev_bs[config_cc], cats_b)
+                                    n = find_spin_pair(spin_pairs, (spin_pairs[m].pair[1], cat_Ja.idx))
+                                    if n != 0
+                                        Ja_local = rev_bs[config_cc]-cat_Ja.shift
+                                        sgn = sgna*sgnaa*sgnc*sgncc
+                                        rdm2bb[p,s,q,r] += sgn*dot(v[n][:, Ja_local], v[m][:, Ib_local])
                                     end
                                 end
                             end
@@ -1849,7 +1844,8 @@ function apply_ccaa(config, orb_a, orb_aa, orb, orb2, config_dict_ket, config_di
     idx_local = findfirst(item -> item == idx_org, cat_org.idxs)
 
     #apply first annhilation
-    spot = first(findall(x->x==orb_a, config))
+    spot = findfirst(x->x==orb_a, config)
+    #spot = first(findall(x->x==orb_a, config))
     new_a = Vector(config)
     splice!(new_a, spot)
     sign_a = 1
@@ -1858,7 +1854,8 @@ function apply_ccaa(config, orb_a, orb_aa, orb, orb2, config_dict_ket, config_di
     end
     
     #apply second annhilation
-    spota = first(findall(x->x==orb_aa, new_a))
+    spota = findfirst(x->x==orb_aa, new_a)
+    #spota = first(findall(x->x==orb_aa, new_a))
     new_aa = Vector(new_a)
     splice!(new_aa, spota)
     sign_aa = 1
