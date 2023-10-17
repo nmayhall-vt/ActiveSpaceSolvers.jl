@@ -36,7 +36,8 @@ function SolverSettings(;
                             tol     =1e-8, 
                             maxiter =2000, 
                             verbose =0, 
-                            package ="arpack",
+                            package ="davidson",
+                            #package ="arpack",
                             max_ss_vecs = 8,
                             lindep_thresh = 1e-10
     )

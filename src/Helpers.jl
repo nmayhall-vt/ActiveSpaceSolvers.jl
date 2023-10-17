@@ -22,16 +22,18 @@ function generate_cluster_fock_ansatze( ref_fock,
     for i in 1:length(clusters)
         verbose == 0 || display(clusters[i])
         delta_e_i = delta_elec[i] 
-        
+
         #
         # Get list of Fock-space sectors for current cluster
         #
         ni = ref_fock[i][1] + ref_fock[i][2]  # number of electrons in cluster i
-        sectors = []
         max_e = 2*length(clusters[i])
         min_e = 0
+        sectors = []
+        println("number of elecs: ", ni)
         for nj in ni-delta_e_i:ni+delta_e_i
-        
+            
+
             nj <= max_e || continue
             nj >= min_e || continue
 
@@ -42,7 +44,6 @@ function generate_cluster_fock_ansatze( ref_fock,
                 push!(sectors, ansatz_i)
             elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz
                 ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
-                display(ansatz_i)
                 push!(sectors, ansatz_i)
             else
                 error("No ansatz defined")
@@ -52,6 +53,59 @@ function generate_cluster_fock_ansatze( ref_fock,
     end
     return ansatze
 end
+
+"""
+        generate_cluster_fock_ansatze_all( ref_fock, 
+                                        clusters::Vector{MOCluster}, 
+                                        init_cluster_ansatz::Vector{<:Ansatz}, 
+                                        delta_elec::Vector{Int}, 
+                                        verbose=0) 
+
+Generates all possible fock sectors that are reachable for the given delta_elec for each cluster
+"""
+function generate_cluster_fock_ansatze_all( ref_fock, 
+                                        clusters::Vector{MOCluster}, 
+                                        init_cluster_ansatz::Vector{<:Ansatz}, 
+                                        delta_elec::Vector{Int}, 
+                                        verbose=0) 
+    ansatze = Vector{Vector{Ansatz}}()
+    length(delta_elec) == length(clusters) || error("length(delta_elec) != length(clusters)") 
+
+    for i in 1:length(clusters)
+        verbose == 0 || display(clusters[i])
+        delta_e_i = delta_elec[i] 
+
+        #
+        # Get list of Fock-space sectors for current cluster
+        #
+        ni = ref_fock[i][1] + ref_fock[i][2]  # number of electrons in cluster i
+        max_e = 2*length(clusters[i])
+        min_e = 0
+        sectors = []
+        println("number of elecs: ", ni)
+        for nj in ni-delta_e_i:ni+delta_e_i
+            
+
+            nj <= max_e || continue
+            nj >= min_e || continue
+
+            naj = nj÷2 + nj%2
+            nbj = nj÷2
+            if typeof(init_cluster_ansatz[i]) ==  FCIAnsatz
+                ansatz_i = FCIAnsatz(init_cluster_ansatz[i].no, Int(naj), Int(nbj))
+                push!(sectors, ansatz_i)
+            elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz
+                ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
+                push!(sectors, ansatz_i)
+            else
+                error("No ansatz defined")
+            end
+        end
+        append!(ansatze, [sectors])
+    end
+    return ansatze
+end
+
 
 """
     invariant_orbital_rotations(init_cluster_ansatz::Ansatz)
