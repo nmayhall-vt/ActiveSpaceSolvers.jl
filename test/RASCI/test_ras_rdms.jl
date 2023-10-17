@@ -16,6 +16,7 @@ function test_rdms(problem, ints::InCoreInts, solver)
     e = e[1]
     #e = e[1]+ints.h0
     v = v[:,1]
+    #a, b, aa, bb, ab = ActiveSpaceSolvers.RASCI.compute_1rdm_2rdm_new(problem, solution.vectors[:,1])
     a, b, aa, bb, ab = ActiveSpaceSolvers.compute_1rdm_2rdm(solution, root=1)
     #spin summ the rdms
     rdm1 = a + b
