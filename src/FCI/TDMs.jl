@@ -47,6 +47,9 @@ function compute_creation(no::Integer, bra_na, bra_nb, ket_na, ket_nb, bra_v::Ma
     _binomial = Array{Int,2}(undef,no+1,no+1)
     for i in 0:no
         for j in i:no
+            if binomial(j,i)>1E12
+                break
+            end
             _binomial[j+1,i+1] = binomial(j,i)
         end
     end
